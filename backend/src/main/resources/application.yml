@@ -3,9 +3,9 @@ spring:
     name: adisker-ai
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:adisker_db}}
-    username: ${DB_USER:adisker}
-    password: ${DB_PASSWORD:adisker_pass}
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:adisker_db}}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:adisker}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:adisker_pass}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
