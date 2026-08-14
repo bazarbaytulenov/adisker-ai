@@ -14,6 +14,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @ConfigurationPropertiesScan
 public class AdiskerApplication {
     public static void main(String[] args) {
+        String dbUrl = System.getenv("SPRING_DATASOURCE_URL");
+        String dbPassword = System.getenv("POSTGRES_PASSWORD");
+        String dbHost = System.getenv("DB_HOST");
+        System.out.println("=== DB DEBUG ===");
+        System.out.println("SPRING_DATASOURCE_URL = " + dbUrl);
+        System.out.println("POSTGRES_PASSWORD length = " + (dbPassword != null ? dbPassword.length() : "NULL"));
+        System.out.println("DB_HOST = " + dbHost);
+        System.out.println("================");
         SpringApplication.run(AdiskerApplication.class, args);
     }
 }
