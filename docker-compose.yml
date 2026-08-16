@@ -1,42 +1,26 @@
 version: '3.9'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: adisker-db
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: adisker-backend
-    depends_on:
-      postgres:
-        condition: service_healthy
+    restart: unless-stopped
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
+      DB_PORT: ${DB_PORT:-5432}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}
       INVITE_URL: ${INVITE_URL}
-      STORAGE_TYPE: ${STORAGE_TYPE}
-      STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH}
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-/var/adisker/uploads}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      SERVER_PORT: 8080
     ports:
       - "8080:8080"
     volumes:
@@ -45,21 +29,23 @@ services:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 60s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: adisker-frontend
+    restart: unless-stopped
     depends_on:
-      - backend
-    environment:
-      # Локально nginx проксирует /api/ → backend через имя сервиса docker-compose
-      BACKEND_URL: http://backend:8080
+      backend:
+        condition: service_healthy
     ports:
-      - "3000:80"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
 
 volumes:
-  postgres_data:
   backend_uploads:
