@@ -4,7 +4,7 @@ import type {
   Organization, Branch, User, Group, Child,
   AttendanceSheet, Cyclogram, DailyPost,
   ProspectivePlan, PlanSection, ScheduleData,
-  ObservationData, IndividualCard,
+  ObservationData, IndividualCard, MethodistSummaryData,
 } from '@/types'
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -75,12 +75,27 @@ export const userApi = {
 
   deactivate: (id: string) =>
     api.patch<ApiResponse<void>>(`/users/${id}/deactivate`),
+
+  assignableRoles: () =>
+    api.get<ApiResponse<string[]>>('/users/assignable-roles'),
+
+  resetPassword: (id: string, password: string) =>
+    api.patch<ApiResponse<void>>(`/users/${id}/reset-password`, { password }),
+
+  orgAdmins: (organizationId: string) =>
+    api.get<ApiResponse<User[]>>('/users/org-admins', { params: { organizationId } }),
+
+  changeMyPassword: (currentPassword: string, newPassword: string) =>
+    api.patch<ApiResponse<void>>('/users/me/password', { currentPassword, newPassword }),
 }
 
 // ─── Groups ───────────────────────────────────────────────────────────────────
 export const groupApi = {
   list: (organizationId: string, branchId: string, page = 0, size = 20) =>
     api.get<ApiResponse<PageResponse<Group>>>('/groups', { params: { organizationId, branchId, page, size } }),
+
+  byBranch: (branchId: string) =>
+    api.get<ApiResponse<Group[]>>(`/groups/by-branch/${branchId}`),
 
   get: (id: string, organizationId: string) =>
     api.get<ApiResponse<Group>>(`/groups/${id}`, { params: { organizationId } }),
@@ -336,4 +351,191 @@ export const observationApi = {
     api.post<ApiResponse<IndividualCard>>('/observations/card', data, {
       params: { childId, observationId },
     }),
+}
+
+// ─── Methodist Summary ────────────────────────────────────────────────────────
+export const methodistSummaryApi = {
+  getSummary: (
+    organizationId: string,
+    branchId: string,
+    groupId: string | null,
+    period: string,
+    academicYear: string
+  ) =>
+    api.get<ApiResponse<MethodistSummaryData>>('/methodist-summary', {
+      params: { organizationId, branchId, ...(groupId ? { groupId } : {}), period, academicYear },
+    }),
+
+  recalculate: (
+    organizationId: string,
+    branchId: string,
+    groupId: string | null,
+    period: string,
+    academicYear: string
+  ) =>
+    api.post<ApiResponse<MethodistSummaryData>>('/methodist-summary/recalculate', null, {
+      params: { organizationId, branchId, ...(groupId ? { groupId } : {}), period, academicYear },
+    }),
+}
+
+// ─── Payments (P1-1) ────────────────────────────────────────────────────────
+export const paymentApi = {
+  createCharge: (organizationId: string, data: any) =>
+    api.post('/payments/charges', data, { params: { organizationId } }),
+  generate: (organizationId: string, groupId: string, year: number, month: number) =>
+    api.post('/payments/charges/generate', null, { params: { organizationId, groupId, year, month } }),
+  chargesByChild: (organizationId: string, childId: string) =>
+    api.get('/payments/charges', { params: { organizationId, childId } }),
+  kaspi: (organizationId: string, chargeId: string) =>
+    api.get(`/payments/charges/${chargeId}/kaspi`, { params: { organizationId } }),
+  pay: (organizationId: string, data: any) =>
+    api.post('/payments', data, { params: { organizationId } }),
+  confirm: (organizationId: string, id: string) =>
+    api.patch(`/payments/${id}/confirm`, null, { params: { organizationId } }),
+  cancel: (organizationId: string, id: string) =>
+    api.patch(`/payments/${id}/cancel`, null, { params: { organizationId } }),
+  registry: (organizationId: string, status = 'pending') =>
+    api.get('/payments/registry', { params: { organizationId, status } }),
+}
+
+// ─── Protocols (P1-5) ─────────────────────────────────────────────────────────
+export const protocolApi = {
+  list: (organizationId: string, branchId?: string, type?: string) =>
+    api.get('/protocols', { params: { organizationId, branchId, type } }),
+  get: (organizationId: string, id: string) =>
+    api.get(`/protocols/${id}`, { params: { organizationId } }),
+  create: (organizationId: string, data: any) =>
+    api.post('/protocols', data, { params: { organizationId } }),
+  update: (organizationId: string, id: string, data: any) =>
+    api.put(`/protocols/${id}`, data, { params: { organizationId } }),
+  delete: (organizationId: string, id: string) =>
+    api.delete(`/protocols/${id}`, { params: { organizationId } }),
+  exportWordUrl: (organizationId: string, id: string) =>
+    `/api/protocols/${id}/export/word?organizationId=${organizationId}`,
+}
+
+// ─── Nomenclature (P2-6) ──────────────────────────────────────────────────────
+export const nomenclatureApi = {
+  list: (organizationId: string, search?: string) =>
+    api.get('/nomenclature', { params: { organizationId, search } }),
+  create: (organizationId: string, data: any) =>
+    api.post('/nomenclature', data, { params: { organizationId } }),
+  update: (organizationId: string, id: string, data: any) =>
+    api.put(`/nomenclature/${id}`, data, { params: { organizationId } }),
+  delete: (organizationId: string, id: string) =>
+    api.delete(`/nomenclature/${id}`, { params: { organizationId } }),
+}
+
+// ─── Routine — режим дня (P1-6) ────────────────────────────────────────────────
+export const routineApi = {
+  getOrCreate: (organizationId: string, branchId: string, groupId: string, year: string, language = 'ru') =>
+    api.get('/routines', { params: { organizationId, branchId, groupId, year, language } }),
+  save: (organizationId: string, id: string, data: any) =>
+    api.put(`/routines/${id}`, data, { params: { organizationId } }),
+  applyTemplate: (organizationId: string, id: string) =>
+    api.patch(`/routines/${id}/template`, null, { params: { organizationId } }),
+  publish: (organizationId: string, id: string) =>
+    api.patch(`/routines/${id}/publish`, null, { params: { organizationId } }),
+}
+
+// ─── Annual / Monthly plans (P1-4) ─────────────────────────────────────────────
+export const annualPlanApi = {
+  getOrCreate: (organizationId: string, branchId: string, year: string, language = 'ru') =>
+    api.get('/annual-plans', { params: { organizationId, branchId, year, language } }),
+  addSection: (organizationId: string, planId: string, data: any) =>
+    api.post(`/annual-plans/${planId}/sections`, data, { params: { organizationId } }),
+  sections: (organizationId: string, planId: string) =>
+    api.get(`/annual-plans/${planId}/sections`, { params: { organizationId } }),
+  addEvent: (organizationId: string, sectionId: string, data: any) =>
+    api.post(`/annual-plans/sections/${sectionId}/events`, data, { params: { organizationId } }),
+  propagate: (organizationId: string, planId: string, year: number, month: number) =>
+    api.post(`/annual-plans/${planId}/propagate`, null, { params: { organizationId, year, month } }),
+  monthly: (organizationId: string, branchId: string) =>
+    api.get('/annual-plans/monthly', { params: { organizationId, branchId } }),
+}
+
+// ─── Manager orders (P2-1) ──────────────────────────────────────────────────────
+export const managerApi = {
+  list: (organizationId: string, branchId?: string, type?: string) =>
+    api.get('/manager-orders', { params: { organizationId, branchId, type } }),
+  create: (organizationId: string, data: any) =>
+    api.post('/manager-orders', data, { params: { organizationId } }),
+  sign: (organizationId: string, id: string) =>
+    api.patch(`/manager-orders/${id}/sign`, null, { params: { organizationId } }),
+}
+
+// ─── Janitor (P2-2) ─────────────────────────────────────────────────────────────
+export const janitorApi = {
+  list: (organizationId: string, branchId?: string, type?: string) =>
+    api.get('/janitor-records', { params: { organizationId, branchId, type } }),
+  create: (organizationId: string, data: any) =>
+    api.post('/janitor-records', data, { params: { organizationId } }),
+  delete: (organizationId: string, id: string) =>
+    api.delete(`/janitor-records/${id}`, { params: { organizationId } }),
+}
+
+// ─── Parent invitations & cabinet (P1-2) ────────────────────────────────────────
+export const parentApi = {
+  createInvitation: (data: any) => api.post('/parent-invitations', data),
+  listInvitations: () => api.get('/parent-invitations'),
+  revokeInvitation: (id: string) => api.patch(`/parent-invitations/${id}/revoke`),
+  myChildren: () => api.get('/parent/children'),
+  register: (data: any) => api.post('/auth/register-parent', data),
+}
+
+// ─── AI (P2-3) ───────────────────────────────────────────────────────────────────
+export const aiApi = {
+  status: () => api.get('/ai/status'),
+  cyclogram: (data: any) => api.post('/ai/cyclogram', data),
+  recommendations: (data: any) => api.post('/ai/recommendations', data),
+  text: (prompt: string) => api.post('/ai/text', { prompt }),
+}
+
+// ─── Audit & Backup (P0-3, P3-1) ──────────────────────────────────────────────────
+export const auditApi = {
+  list: (action?: string, entityType?: string, page = 0, size = 50) =>
+    api.get('/audit-logs', { params: { action, entityType, page, size } }),
+}
+export const backupApi = {
+  exportUrl: (organizationId: string) => `/api/backup/export?organizationId=${organizationId}`,
+}
+
+// ─── Medical journals ────────────────────────────────────────────────────────
+export const medicalApi = {
+  list: (organizationId: string, branchId: string, page = 0, size = 20) =>
+    api.get('/medical', { params: { organizationId, branchId, page, size } }),
+  create: (data: any) => api.post('/medical', data),
+  update: (id: string, data: any) => api.put(`/medical/${id}`, data),
+  saveData: (id: string, data: string) => api.patch(`/medical/${id}/data`, { data }),
+  delete: (id: string) => api.delete(`/medical/${id}`),
+}
+
+// ─── Material assets (МТБ) ────────────────────────────────────────────────────
+export const assetApi = {
+  list: (organizationId: string, branchId?: string, page = 0, size = 20) =>
+    api.get('/assets', { params: { organizationId, branchId, page, size } }),
+  create: (data: any) => api.post('/assets', data),
+  update: (id: string, data: any) => api.put(`/assets/${id}`, data),
+  delete: (id: string) => api.delete(`/assets/${id}`),
+}
+
+// ─── Library fund ─────────────────────────────────────────────────────────────
+export const libraryApi = {
+  list: (organizationId: string, branchId?: string, page = 0, size = 20) =>
+    api.get('/library', { params: { organizationId, branchId, page, size } }),
+  create: (data: any) => api.post('/library', data),
+  update: (id: string, data: any) => api.put(`/library/${id}`, data),
+  delete: (id: string) => api.delete(`/library/${id}`),
+}
+
+// ─── Chat ──────────────────────────────────────────────────────────────────────
+export const chatApi = {
+  threads: () => api.get('/chat/threads'),
+  getOrCreateThread: (childId: string, educatorId: string, parentUserId?: string) =>
+    api.get('/chat/thread', { params: { childId, educatorId, parentUserId } }),
+  messages: (threadId: string, page = 0, size = 30) =>
+    api.get(`/chat/threads/${threadId}/messages`, { params: { page, size } }),
+  send: (threadId: string, content: string) =>
+    api.post(`/chat/threads/${threadId}/messages`, { content }),
+  markRead: (threadId: string) => api.patch(`/chat/threads/${threadId}/read`),
 }

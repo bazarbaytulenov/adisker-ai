@@ -94,6 +94,17 @@ public class ChatService {
         messageRepo.markAllReadInThread(threadId, readerId);
     }
 
+    /**
+     * Отправка сообщения из STOMP-сессии: организация определяется по треду
+     * (в WS-сессии нет UserPrincipal с orgId).
+     */
+    @Transactional
+    public ChatDto.MessageDto sendMessageFromThread(UUID threadId, UUID senderId, String content) {
+        ChatThread thread = threadRepo.findById(threadId)
+                .orElseThrow(() -> new ResourceNotFoundException("ChatThread", threadId));
+        return sendMessage(thread.getOrganizationId(), threadId, senderId, content);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private ChatDto.ThreadDto toThreadDto(ChatThread t) {

@@ -92,7 +92,7 @@ export default function GroupsPage() {
         <Button onClick={openCreate}><Plus className="h-4 w-4" /> Добавить группу</Button>
       </div>
 
-      {branchOptions.length > 1 && (
+      {branchOptions.length > 0 && (
         <Select
           label="Фильтр по филиалу"
           options={branchOptions}
@@ -143,7 +143,7 @@ export default function GroupsPage() {
       <Modal open={modalOpen} onClose={closeModal} title={editing ? 'Редактировать группу' : 'Новая группа'}>
         <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form) }} className="space-y-4">
           <Input label="Название *" value={form.name} onChange={set('name')} required />
-          {branchOptions.length > 1 && (
+          {branchOptions.length > 0 && (
             <Select label="Филиал *" options={branchOptions} value={form.branchId} onChange={set('branchId')} required />
           )}
           <div className="grid grid-cols-2 gap-3">

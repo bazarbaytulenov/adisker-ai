@@ -19,6 +19,24 @@ frontend/.vite/
 # Логи
 *.log
 
+# Dev-загрузки файлов
+.dev-uploads/
+
 # OS
 .DS_Store
 Thumbs.db
+
+# SSH ключ AWS
+adisker-key.pem
+# Дампы БД
+adisker_db_backup_*.sql
+
+.env.prod
+.env.*
+
+# Локальные артефакты и мусор (не для репозитория)
+aws/
+awscliv2.zip
+*.sql
+.idea/
+test

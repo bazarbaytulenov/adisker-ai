@@ -36,6 +36,7 @@ public class OrganizationService {
                 .email(req.getEmail())
                 .logoUrl(req.getLogoUrl())
                 .active(true)
+                .dailyRate(req.getDailyRate() != null ? req.getDailyRate() : java.math.BigDecimal.ZERO)
                 .build();
         return toDto(repo.save(org));
     }
@@ -50,6 +51,7 @@ public class OrganizationService {
         org.setPhone(req.getPhone());
         org.setEmail(req.getEmail());
         org.setLogoUrl(req.getLogoUrl());
+        if (req.getDailyRate() != null) org.setDailyRate(req.getDailyRate());
         return toDto(repo.save(org));
     }
 
@@ -77,6 +79,7 @@ public class OrganizationService {
         dto.setEmail(org.getEmail());
         dto.setLogoUrl(org.getLogoUrl());
         dto.setActive(org.isActive());
+        dto.setDailyRate(org.getDailyRate());
         dto.setCreatedAt(org.getCreatedAt());
         return dto;
     }

@@ -1,6 +1,7 @@
 package kz.adisker.module.user;
 
 import kz.adisker.common.RoleCode;
+import kz.adisker.common.RolePermissions;
 import kz.adisker.common.dto.PageResponse;
 import kz.adisker.common.exception.BusinessException;
 import kz.adisker.common.exception.ResourceNotFoundException;
@@ -27,6 +28,40 @@ public class UserService {
                 userRepository.findByOrganizationIdAndDeletedFalse(orgId, pageable).map(this::toDto));
     }
 
+    /** Список директоров (админов) организации — для супер-админа. */
+    public java.util.List<UserDto> getOrgAdmins(UUID orgId) {
+        return userRepository
+                .findByOrganizationIdAndRoleCodeAndDeletedFalse(orgId, RoleCode.DIRECTOR)
+                .stream().map(this::toDto).toList();
+    }
+
+    /**
+     * Сброс пароля пользователю.
+     * SYSTEM_ADMIN может сбросить любому; DIRECTOR — только сотруднику своей организации
+     * (и не другому директору/себе через этот путь).
+     */
+    @Transactional
+    public void resetPassword(UUID id, String newPassword, UserPrincipal principal) {
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BusinessException("Пароль должен быть не короче 6 символов");
+        }
+        User user = findOrThrow(id);
+        boolean isSystemAdmin = principal.getRoleCode().equals(RoleCode.SYSTEM_ADMIN);
+        if (!isSystemAdmin) {
+            // директор: только своя организация и только назначаемые им роли (не другой директор)
+            if (!user.getOrganizationId().equals(principal.getOrganizationId())
+                    || !RolePermissions.canAssign(principal.getRoleCode(), user.getRoleCode())) {
+                throw new kz.adisker.common.exception.AccessDeniedException();
+            }
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        // разблокировать и активировать на случай, если был заблокирован
+        user.setActive(true);
+        user.setFailedLoginCount(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+    }
+
     public UserDto getById(UUID id, UserPrincipal principal) {
         User user = findOrThrow(id);
         // Non-admin users can only view users in their own org
@@ -41,13 +76,42 @@ public class UserService {
         return toDto(findOrThrow(principal.getId()));
     }
 
+    /** Смена собственного пароля: требует текущий пароль. */
+    @Transactional
+    public void changeOwnPassword(UserPrincipal principal, String currentPassword, String newPassword) {
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BusinessException("Новый пароль должен быть не короче 6 символов");
+        }
+        User user = findOrThrow(principal.getId());
+        if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new BusinessException("Текущий пароль указан неверно");
+        }
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new BusinessException("Новый пароль должен отличаться от текущего");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    /** Роли, которые текущий пользователь вправе назначать (для UI-формы). */
+    public java.util.List<String> assignableRoles(UserPrincipal principal) {
+        return new java.util.ArrayList<>(RolePermissions.assignableRoles(principal.getRoleCode()));
+    }
+
     @Transactional
     public UserDto create(UserRequest req, UserPrincipal principal) {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new BusinessException("Email already in use: " + req.getEmail());
         }
+        if (!RolePermissions.canAssign(principal.getRoleCode(), req.getRoleCode())) {
+            throw new BusinessException(
+                    "Недостаточно прав для назначения роли: " + req.getRoleCode());
+        }
         UUID orgId = principal.getRoleCode().equals(RoleCode.SYSTEM_ADMIN)
                 ? req.getOrganizationId() : principal.getOrganizationId();
+        if (orgId == null) {
+            throw new BusinessException("Не указана организация для пользователя");
+        }
 
         User user = User.builder()
                 .email(req.getEmail())
@@ -78,7 +142,13 @@ public class UserService {
         user.setPhone(req.getPhone());
         user.setPhotoUrl(req.getPhotoUrl());
         if (req.getPreferredLanguage() != null) user.setPreferredLanguage(req.getPreferredLanguage());
-        if (req.getRoleCode() != null) user.setRoleCode(req.getRoleCode());
+        if (req.getRoleCode() != null && !req.getRoleCode().equals(user.getRoleCode())) {
+            if (!RolePermissions.canAssign(principal.getRoleCode(), req.getRoleCode())) {
+                throw new BusinessException(
+                        "Недостаточно прав для назначения роли: " + req.getRoleCode());
+            }
+            user.setRoleCode(req.getRoleCode());
+        }
         if (req.getPassword() != null && !req.getPassword().isBlank()) {
             user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
         }

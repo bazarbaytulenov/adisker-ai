@@ -11,5 +11,6 @@ public interface ObservationRepository extends JpaRepository<Observation, UUID> 
     List<Observation> findByGroupIdAndAcademicYearAndPeriodAndDeletedFalse(UUID groupId, String year, String period);
     Optional<Observation> findByChildIdAndPeriodAndAcademicYear(UUID childId, String period, String year);
     List<Observation> findByChildIdAndDeletedFalse(UUID childId);
+    List<Observation> findByBranchIdAndAcademicYearAndPeriodAndDeletedFalse(UUID branchId, String year, String period);
 }
 

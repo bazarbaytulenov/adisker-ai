@@ -8,6 +8,6 @@ import java.util.UUID;
 
 @Repository
 public interface ObservationIndicatorRepository extends JpaRepository<ObservationIndicator, UUID> {
-    List<ObservationIndicator> findByOrganizationIdAndAgeGroupAndActiveTrue(UUID orgId, String ageGroup);
+    List<ObservationIndicator> findByOrganizationIdAndAgeGroupAndActiveTrueOrderBySortOrder(UUID orgId, String ageGroup);
     List<ObservationIndicator> findByOrganizationIdAndActiveTrueOrderBySortOrder(UUID orgId);
 }

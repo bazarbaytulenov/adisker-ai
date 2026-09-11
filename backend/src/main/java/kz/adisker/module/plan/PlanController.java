@@ -50,6 +50,12 @@ public class PlanController {
         return ApiResponse.ok(service.getSections(planId));
     }
 
+    /** GET /api/plans/sections/{sectionId}/history */
+    @GetMapping("/sections/{sectionId}/history")
+    public ApiResponse<List<PlanService.VersionDto>> history(@PathVariable UUID sectionId) {
+        return ApiResponse.ok(service.getSectionHistory(sectionId));
+    }
+
     /** PUT /api/plans/{planId}/sections?organizationId= */
     @PutMapping("/{planId}/sections")
     @PreAuthorize("hasAnyRole('EDUCATOR','KAZ_TEACHER','MUSIC_TEACHER','PE_INSTRUCTOR','METHODIST','DIRECTOR','SYSTEM_ADMIN')")

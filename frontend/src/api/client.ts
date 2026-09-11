@@ -12,6 +12,11 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // Язык документа/интерфейса для backend (ТЗ п.8)
+  try {
+    const lang = JSON.parse(localStorage.getItem('adisker-lang') || '{}')?.state?.lang
+    if (lang) config.headers['Accept-Language'] = lang
+  } catch { /* ignore */ }
   return config
 })
 

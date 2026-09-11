@@ -27,7 +27,7 @@ public class AttendanceService {
         AttendanceMonth am = monthRepo.findByGroupIdAndYearAndMonth(groupId, year, month)
                 .orElseGet(() -> monthRepo.save(AttendanceMonth.builder()
                         .organizationId(orgId).branchId(branchId).groupId(groupId)
-                        .year(year).month(month).closed(false).createdAt(Instant.now()).build()));
+                        .year(year).month(month).closed(false).build()));
 
         List<AttendanceMark> marks = markRepo.findByAttendanceMonthId(am.getId());
 
@@ -70,8 +70,7 @@ public class AttendanceService {
         if (mark != null && !mark.isBlank()) {
             markRepo.save(AttendanceMark.builder()
                     .attendanceMonthId(monthId).childId(childId).organizationId(orgId)
-                    .day(day).mark(mark).createdAt(Instant.now()).updatedAt(Instant.now())
-                    .updatedBy(principal.getId()).build());
+                    .day(day).mark(mark).updatedBy(principal.getId()).build());
         }
     }
 
@@ -85,6 +84,37 @@ public class AttendanceService {
         am.setClosedAt(Instant.now());
         monthRepo.save(am);
     }
+
+    /**
+     * Данные табеля для экспорта: заголовки колонок (Ф.И.О. + дни 1..31 + итог)
+     * и строки по детям с подсчётом присутствий.
+     */
+    public ExportData exportData(UUID orgId, UUID branchId, UUID groupId, int year, int month) {
+        AttendanceSheetDto sheet = getOrCreateSheet(orgId, branchId, groupId, year, month);
+        int daysInMonth = java.time.YearMonth.of(year, month).lengthOfMonth();
+
+        List<String> headers = new ArrayList<>();
+        headers.add("Ф.И.О.");
+        for (int d = 1; d <= daysInMonth; d++) headers.add(String.valueOf(d));
+        headers.add("Присут.");
+
+        List<List<String>> rows = new ArrayList<>();
+        for (ChildAttendanceRow row : sheet.getRows()) {
+            List<String> line = new ArrayList<>();
+            line.add(row.getFullName());
+            int present = 0;
+            for (int d = 1; d <= daysInMonth; d++) {
+                String mark = row.getMarks().getOrDefault(d, "");
+                line.add(mark);
+                if ("1".equals(mark)) present++;
+            }
+            line.add(String.valueOf(present));
+            rows.add(line);
+        }
+        return new ExportData(headers, rows);
+    }
+
+    public record ExportData(List<String> headers, List<List<String>> rows) {}
 
     // ── DTOs ───────────────────────────────────────────────────────────────
     @Data public static class AttendanceSheetDto {

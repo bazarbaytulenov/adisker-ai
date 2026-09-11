@@ -22,4 +22,6 @@ public class ChildRequest {
     private String parentPhone;
     private String parentEmail;
     private String notes;
+    private java.math.BigDecimal benefitPercent;
+    private String benefitReason;
 }

@@ -13,6 +13,7 @@ const emptyForm = {
   lastName: '', firstName: '', middleName: '', birthDate: '',
   gender: '', iin: '', branchId: '', groupId: '',
   admissionDate: '', admissionOrderNum: '', parentName: '', parentPhone: '',
+  benefitPercent: '', benefitReason: '',
 }
 
 function ageLabel(birthDate: string) {
@@ -72,7 +73,9 @@ export default function ChildrenPage() {
       birthDate: c.birthDate, gender: c.gender ?? '', iin: c.iin ?? '',
       branchId: c.branchId, groupId: c.groupId ?? '',
       admissionDate: c.admissionDate ?? '', admissionOrderNum: c.admissionOrderNum ?? '',
-      parentName: '', parentPhone: '',
+      parentName: (c as any).parentName ?? '', parentPhone: (c as any).parentPhone ?? '',
+      benefitPercent: (c as any).benefitPercent != null ? String((c as any).benefitPercent) : '',
+      benefitReason: (c as any).benefitReason ?? '',
     })
     setModalOpen(true)
   }
@@ -182,6 +185,10 @@ export default function ChildrenPage() {
           <div className="grid grid-cols-2 gap-3">
             <Input label="ФИО родителя" value={form.parentName} onChange={set('parentName')} />
             <Input label="Телефон родителя" value={form.parentPhone} onChange={set('parentPhone')} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Льгота, % (скидка на оплату)" type="number" value={form.benefitPercent} onChange={set('benefitPercent')} />
+            <Input label="Причина льготы" value={form.benefitReason} onChange={set('benefitReason')} />
           </div>
           <div className="flex gap-3 justify-end pt-2">
             <Button type="button" variant="secondary" onClick={closeModal}>Отмена</Button>

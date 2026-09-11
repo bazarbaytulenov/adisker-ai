@@ -25,4 +25,8 @@ public class Organization extends BaseEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    /** Дневная ставка (тариф) для авто-начислений из табеля. */
+    @Column(name = "daily_rate", nullable = false)
+    private java.math.BigDecimal dailyRate = java.math.BigDecimal.ZERO;
 }

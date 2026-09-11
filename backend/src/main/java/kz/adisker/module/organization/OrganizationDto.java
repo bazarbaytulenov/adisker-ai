@@ -15,5 +15,6 @@ public class OrganizationDto {
     private String email;
     private String logoUrl;
     private boolean active;
+    private java.math.BigDecimal dailyRate;
     private Instant createdAt;
 }

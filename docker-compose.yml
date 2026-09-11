@@ -1,19 +1,42 @@
 version: '3.9'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: adisker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-adisker_db}
+      POSTGRES_USER: ${DB_USER:-adisker}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-adisker_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Именованный volume — данные сохраняются между рестартами и пересозданием контейнера.
+      # Удаляются ТОЛЬКО при явном `docker compose down -v`.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-adisker} -d ${DB_NAME:-adisker_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: adisker-backend
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_HOST: ${DB_HOST}
+      DB_HOST: ${DB_HOST:-postgres}
       DB_PORT: ${DB_PORT:-5432}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-adisker_db}
+      DB_USER: ${DB_USER:-adisker}
+      DB_PASSWORD: ${DB_PASSWORD:-adisker_pass}
       JWT_SECRET: ${JWT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}
       INVITE_URL: ${INVITE_URL}
@@ -41,11 +64,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      # nginx проксирует /api/ на backend внутри compose-сети
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8080}
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
 
 volumes:
   backend_uploads:
+  postgres_data:

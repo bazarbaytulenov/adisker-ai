@@ -52,6 +52,7 @@ export interface Organization {
   email?: string
   logoUrl?: string
   active: boolean
+  dailyRate?: number
   createdAt: string
 }
 
@@ -273,4 +274,26 @@ export interface ScheduleData {
   approvalInfo: string | null
   published: boolean
   entries: ScheduleEntry[]
+}
+
+// ── Methodist Summary (Свод методиста) ───────────────────────────────────────
+
+export interface MethodistSummaryRow {
+  domain: string
+  ageGroup: string
+  totalChildren: number
+  highCount: number
+  midCount: number
+  lowCount: number
+  highPct: number
+  midPct: number
+  lowPct: number
+}
+
+export interface MethodistSummaryData {
+  period: string
+  academicYear: string
+  cached: boolean
+  totalObservations: number
+  rows: MethodistSummaryRow[]
 }

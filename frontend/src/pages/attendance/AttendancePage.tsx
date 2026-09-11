@@ -237,9 +237,9 @@ export default function AttendancePage() {
                     {d}
                   </th>
                 ))}
-                <th className="px-2 py-2 text-center font-semibold text-gray-600 whitespace-nowrap">Б</th>
-                <th className="px-2 py-2 text-center font-semibold text-gray-600 whitespace-nowrap">Н</th>
-                <th className="px-2 py-2 text-center font-semibold text-gray-600 whitespace-nowrap">О</th>
+                <th className="px-2 py-2 text-center font-semibold text-green-700 whitespace-nowrap" title="Присутствовал">П</th>
+                <th className="px-2 py-2 text-center font-semibold text-red-600 whitespace-nowrap" title="Болеет">Б</th>
+                <th className="px-2 py-2 text-center font-semibold text-blue-600 whitespace-nowrap" title="Отпуск/отгул">О</th>
               </tr>
               {/* Строка с днями недели */}
               <tr className="bg-gray-50 border-b border-gray-200">

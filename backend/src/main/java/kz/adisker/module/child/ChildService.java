@@ -55,6 +55,8 @@ public class ChildService {
                 .parentPhone(req.getParentPhone())
                 .parentEmail(req.getParentEmail())
                 .notes(req.getNotes())
+                .benefitPercent(req.getBenefitPercent() != null ? req.getBenefitPercent() : java.math.BigDecimal.ZERO)
+                .benefitReason(req.getBenefitReason())
                 .status("active")
                 .build();
         return toDto(repo.save(child));
@@ -78,6 +80,8 @@ public class ChildService {
         child.setParentPhone(req.getParentPhone());
         child.setParentEmail(req.getParentEmail());
         child.setNotes(req.getNotes());
+        if (req.getBenefitPercent() != null) child.setBenefitPercent(req.getBenefitPercent());
+        child.setBenefitReason(req.getBenefitReason());
         return toDto(repo.save(child));
     }
 
@@ -115,6 +119,8 @@ public class ChildService {
         dto.setParentName(c.getParentName());
         dto.setParentPhone(c.getParentPhone());
         dto.setParentEmail(c.getParentEmail());
+        dto.setBenefitPercent(c.getBenefitPercent());
+        dto.setBenefitReason(c.getBenefitReason());
         return dto;
     }
 }

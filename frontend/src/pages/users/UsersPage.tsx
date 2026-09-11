@@ -55,6 +55,14 @@ export default function UsersPage() {
     enabled: !!organizationId,
   })
 
+  // Роли, которые текущий пользователь вправе назначать (совпадает с backend RBAC)
+  const { data: rolesData } = useQuery({
+    queryKey: ['assignable-roles'],
+    queryFn: () => userApi.assignableRoles(),
+  })
+  const assignable = rolesData?.data.data ?? []
+  const roleOptions = ROLES.filter((r) => assignable.includes(r.value))
+
   // ── Mutations ─────────────────────────────────────────────────────────────
   const saveMutation = useMutation({
     mutationFn: (d: typeof emptyForm) => {
@@ -275,7 +283,7 @@ export default function UsersPage() {
           <div className="grid grid-cols-2 gap-3">
             <Select
               label="Роль *"
-              options={ROLES}
+              options={roleOptions}
               value={form.roleCode}
               onChange={set('roleCode')}
               placeholder="Выберите роль"

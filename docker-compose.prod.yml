@@ -1,0 +1,49 @@
+version: '3.9'
+
+# Прод-конфигурация для EC2: БД — внешний AWS RDS (не локальный postgres).
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: adisker-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-adisker_db}
+      DB_USER: ${DB_USER:-adisker}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      INVITE_URL: ${INVITE_URL}
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-/var/adisker/uploads}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      SERVER_PORT: 8080
+    volumes:
+      - backend_uploads:/var/adisker/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: adisker-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8080}
+    ports:
+      - "80:80"
+
+volumes:
+  backend_uploads:

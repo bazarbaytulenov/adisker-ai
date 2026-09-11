@@ -13,4 +13,5 @@ public class OrganizationRequest {
     private String phone;
     private String email;
     private String logoUrl;
+    private java.math.BigDecimal dailyRate;
 }

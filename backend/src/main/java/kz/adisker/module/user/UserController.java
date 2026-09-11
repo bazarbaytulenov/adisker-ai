@@ -27,6 +27,25 @@ public class UserController {
         return ApiResponse.ok(userService.getMe(principal));
     }
 
+    /** Смена собственного пароля (любой авторизованный пользователь). */
+    @PatchMapping("/me/password")
+    public ApiResponse<Void> changeMyPassword(@Valid @RequestBody ChangePasswordRequest req,
+                                              @AuthenticationPrincipal UserPrincipal principal) {
+        userService.changeOwnPassword(principal, req.currentPassword(), req.newPassword());
+        return ApiResponse.ok("Password changed", null);
+    }
+
+    public record ChangePasswordRequest(
+            @jakarta.validation.constraints.NotBlank String currentPassword,
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Size(min = 6) String newPassword) {}
+
+    @GetMapping("/assignable-roles")
+    public ApiResponse<java.util.List<String>> assignableRoles(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(userService.assignableRoles(principal));
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','DIRECTOR','METHODIST')")
     public ApiResponse<PageResponse<UserDto>> list(
@@ -64,4 +83,25 @@ public class UserController {
         userService.deactivate(id);
         return ApiResponse.ok("User deactivated", null);
     }
+
+    /** Сброс пароля пользователю (супер-админ — любому; директор — своим сотрудникам). */
+    @PatchMapping("/{id}/reset-password")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','DIRECTOR')")
+    public ApiResponse<Void> resetPassword(@PathVariable UUID id,
+                                           @Valid @RequestBody ResetPasswordRequest req,
+                                           @AuthenticationPrincipal UserPrincipal principal) {
+        userService.resetPassword(id, req.password(), principal);
+        return ApiResponse.ok("Password reset", null);
+    }
+
+    /** Админы (директора) организации — для супер-админа. */
+    @GetMapping("/org-admins")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    public ApiResponse<java.util.List<UserDto>> orgAdmins(@RequestParam UUID organizationId) {
+        return ApiResponse.ok(userService.getOrgAdmins(organizationId));
+    }
+
+    public record ResetPasswordRequest(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Size(min = 6) String password) {}
 }

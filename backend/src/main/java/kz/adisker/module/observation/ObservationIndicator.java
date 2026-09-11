@@ -14,6 +14,7 @@ public class ObservationIndicator {
     @Column(nullable = false) private String domain;
     @Column(nullable = false) private String criterion;
     @Column(nullable = false) private String indicator;
+    @Column(name = "code")    private String code;
     @Column(name = "sort_order") private int sortOrder;
     @Column(name = "is_active") private boolean active = true;
     @Column(name = "created_at") private Instant createdAt;

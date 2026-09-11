@@ -2,7 +2,7 @@
 
 ## Архитектура
 
-```
+``r`
 Internet → EC2 (frontend:80, backend:8080) → RDS PostgreSQL
 ```
 
@@ -19,10 +19,7 @@ Internet → EC2 (frontend:80, backend:8080) → RDS PostgreSQL
    - Master password: придумай надёжный пароль
 5. Connectivity:
    - VPC: выбери ту же VPC что и EC2
-   - Public access: **No** (EC2 обращается по приватному IP)
-6. Initial database name: `adisker_db`
-7. После создания скопируй **Endpoint** — это будет `DB_HOST`
-
+   - Publi ЩҢ
 ---
 
 ## 2. Создать EC2 инстанс

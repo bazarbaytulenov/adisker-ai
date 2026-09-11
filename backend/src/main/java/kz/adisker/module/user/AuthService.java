@@ -1,6 +1,7 @@
 package kz.adisker.module.user;
 
 import kz.adisker.common.exception.BusinessException;
+import kz.adisker.module.audit.AuditService;
 import kz.adisker.security.JwtService;
 import kz.adisker.security.RefreshToken;
 import kz.adisker.security.RefreshTokenRepository;
@@ -28,11 +29,29 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authManager;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
+    private final LoginAttemptService loginAttemptService;
 
     @Transactional
     public TokenResponse login(LoginRequest req, String ipAddress, String userAgent) {
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
+        // Проверка блокировки до аутентификации
+        User existing = userRepository.findByEmailAndDeletedFalse(req.getEmail()).orElse(null);
+        if (existing != null && existing.getLockedUntil() != null
+                && existing.getLockedUntil().isAfter(Instant.now())) {
+            auditService.recordAuth("LOGIN", existing.getId(), existing.getOrganizationId(),
+                    existing.getEmail(), "Отклонён вход: аккаунт временно заблокирован");
+            throw new BusinessException("Аккаунт временно заблокирован из-за превышения числа попыток. "
+                    + "Повторите позже.");
+        }
+
+        try {
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
+        } catch (org.springframework.security.core.AuthenticationException ex) {
+            // Неудачная попытка: инкремент счётчика в отдельной транзакции
+            loginAttemptService.registerFailure(req.getEmail());
+            throw ex;
+        }
 
         User user = userRepository.findByEmailAndDeletedFalse(req.getEmail())
                 .orElseThrow(() -> new BusinessException("User not found"));
@@ -43,8 +62,12 @@ public class AuthService {
 
         // Reset failed login counter
         user.setFailedLoginCount(0);
+        user.setLockedUntil(null);
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
+
+        auditService.recordAuth("LOGIN", user.getId(), user.getOrganizationId(),
+                user.getEmail(), "Успешный вход");
 
         String accessToken = jwtService.generateAccessToken(
                 user.getId(), user.getEmail(), user.getRoleCode(), user.getOrganizationId());
@@ -119,6 +142,7 @@ public class AuthService {
     @Transactional
     public void logout(UUID userId) {
         refreshTokenRepository.revokeAllByUserId(userId);
+        auditService.recordAuth("LOGOUT", userId, null, null, "Выход из системы");
     }
 
     private String hashToken(String token) {

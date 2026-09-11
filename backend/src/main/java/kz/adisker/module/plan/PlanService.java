@@ -1,7 +1,10 @@
 package kz.adisker.module.plan;
 
+import kz.adisker.common.RoleCode;
+import kz.adisker.common.exception.AccessDeniedException;
 import kz.adisker.common.exception.BusinessException;
 import kz.adisker.common.exception.ResourceNotFoundException;
+import kz.adisker.module.audit.AuditService;
 import kz.adisker.security.UserPrincipal;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -22,6 +26,22 @@ public class PlanService {
     private final ProspectivePlanRepository planRepo;
     private final PlanSectionRepository sectionRepo;
     private final PlanLockRepository lockRepo;
+    private final PlanVersionRepository versionRepo;
+    private final SpecialistGroupAssignmentRepository assignmentRepo;
+    private final AuditService auditService;
+
+    // ── Домены (графы) образовательных областей ────────────────────────────────
+    static final String DOMAIN_KAZ      = "kaz_language"; // Қазақ тілі
+    static final String DOMAIN_MUSIC    = "music";        // Музыка
+    static final String DOMAIN_PHYSICAL = "physical";     // Физическая культура
+    static final String DOMAIN_EDUCATOR = "educator";     // области воспитателя
+
+    /** Единственная графа, которую специалист вправе редактировать (иначе null). */
+    private static final Map<String, String> ROLE_DOMAIN = Map.of(
+            RoleCode.KAZ_TEACHER,   DOMAIN_KAZ,
+            RoleCode.MUSIC_TEACHER, DOMAIN_MUSIC,
+            RoleCode.PE_INSTRUCTOR, DOMAIN_PHYSICAL
+    );
 
     // ── Перспективный план ────────────────────────────────────────────────────
 
@@ -53,8 +73,20 @@ public class PlanService {
                 .stream().map(this::toSectionDto).collect(Collectors.toList());
     }
 
+    /** История версий секции (новые сверху). */
+    public List<VersionDto> getSectionHistory(UUID sectionId) {
+        return versionRepo.findBySectionIdOrderByVersionDesc(sectionId)
+                .stream().map(this::toVersionDto).collect(Collectors.toList());
+    }
+
     @Transactional
     public SectionDto saveSection(UUID planId, UUID orgId, SectionRequest req, UserPrincipal principal) {
+        ProspectivePlan plan = planRepo.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("ProspectivePlan", planId));
+
+        // Проверка прав: специалист редактирует только свою графу и только своей группы
+        assertCanEditSection(plan, req.getDomain(), principal);
+
         PlanSection section = sectionRepo
                 .findByPlanIdAndDomainAndDeletedFalse(planId, req.getDomain())
                 .orElseGet(() -> {
@@ -66,14 +98,21 @@ public class PlanService {
                     return s;
                 });
 
-        // Сохраняем версию если контент изменился
+        // Утверждённую графу редактировать нельзя — только после возврата методистом
+        if ("approved".equals(section.getStatus())) {
+            throw new BusinessException("Графа утверждена и доступна только для просмотра. "
+                    + "Для изменений методист должен вернуть её на доработку.");
+        }
+
+        // Сохраняем версию, если контент изменился
         if (section.getId() != null && req.getContent() != null
                 && !req.getContent().equals(section.getContent())) {
             lockRepo.findBySectionId(section.getId()).ifPresent(lock -> {
-                if (!lock.getLockedBy().equals(principal.getId()))
+                if (!lock.getLockedBy().equals(principal.getId())
+                        && lock.getExpiresAt().isAfter(Instant.now()))
                     throw new BusinessException("Секция заблокирована другим пользователем");
             });
-            PlanVersion ver = PlanVersion.builder()
+            versionRepo.save(PlanVersion.builder()
                     .sectionId(section.getId())
                     .version(section.getVersion())
                     .content(section.getContent())
@@ -81,8 +120,7 @@ public class PlanService {
                     .materials(section.getMaterials())
                     .changedBy(principal.getId())
                     .changedAt(Instant.now())
-                    .build();
-            // версии сохраняются отдельно при необходимости
+                    .build());
             section.setVersion(section.getVersion() + 1);
         }
 
@@ -103,6 +141,9 @@ public class PlanService {
     @Transactional
     public SectionDto submitSection(UUID sectionId, UUID orgId, UserPrincipal principal) {
         PlanSection s = findSection(sectionId);
+        ProspectivePlan plan = planRepo.findById(s.getPlanId())
+                .orElseThrow(() -> new ResourceNotFoundException("ProspectivePlan", s.getPlanId()));
+        assertCanEditSection(plan, s.getDomain(), principal);
         s.setStatus("review");
         s.setSubmittedAt(Instant.now());
         s.setUpdatedBy(principal.getId());
@@ -118,6 +159,8 @@ public class PlanService {
         s.setUpdatedBy(principal.getId());
         PlanSection saved = sectionRepo.save(s);
         recalcFillPct(s.getPlanId());
+        auditService.record("APPROVE", "plan_section", saved.getId(), null, null,
+                "Утверждена графа: " + saved.getDomain());
         return toSectionDto(saved);
     }
 
@@ -128,7 +171,10 @@ public class PlanService {
         s.setReturnedAt(Instant.now());
         s.setReturnComment(comment);
         s.setUpdatedBy(principal.getId());
-        return toSectionDto(sectionRepo.save(s));
+        PlanSection saved = sectionRepo.save(s);
+        auditService.record("REJECT", "plan_section", saved.getId(), null, null,
+                "Возврат на доработку: " + comment);
+        return toSectionDto(saved);
     }
 
     // ── Блокировка секции ─────────────────────────────────────────────────────
@@ -159,6 +205,55 @@ public class PlanService {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /**
+     * Проверяет, вправе ли пользователь редактировать графу {@code domain} плана.
+     * Правила (ТЗ 3.3, 5.11):
+     *  - METHODIST / DIRECTOR / SYSTEM_ADMIN — все графы всех групп;
+     *  - EDUCATOR — все графы, кроме зарезервированных за специалистами;
+     *  - KAZ_TEACHER / MUSIC_TEACHER / PE_INSTRUCTOR — только свою графу и только
+     *    в закреплённой за ним группе;
+     *  - прочие роли — запрещено.
+     */
+    void assertCanEditSection(ProspectivePlan plan, String domain, UserPrincipal principal) {
+        String role = principal.getRoleCode();
+
+        // Изоляция арендатора: план чужой организации недоступен
+        if (!plan.getOrganizationId().equals(principal.getOrganizationId())) {
+            throw new AccessDeniedException("План принадлежит другой организации");
+        }
+
+        // Методист / руководитель / админ — полный доступ ко всем графам
+        if (RoleCode.METHODIST.equals(role)
+                || RoleCode.DIRECTOR.equals(role)
+                || RoleCode.SYSTEM_ADMIN.equals(role)) {
+            return;
+        }
+
+        // Специалисты — только своя графа и только закреплённая группа
+        String allowedDomain = ROLE_DOMAIN.get(role);
+        if (allowedDomain != null) {
+            if (!allowedDomain.equals(domain)) {
+                throw new AccessDeniedException(
+                        "Специалист может редактировать только свою образовательную область");
+            }
+            if (!assignmentRepo.existsBySpecialistIdAndGroupId(principal.getId(), plan.getGroupId())) {
+                throw new AccessDeniedException("Группа не закреплена за специалистом");
+            }
+            return;
+        }
+
+        // Воспитатель — все графы, кроме зарезервированных за специалистами
+        if (RoleCode.EDUCATOR.equals(role)) {
+            if (ROLE_DOMAIN.containsValue(domain)) {
+                throw new AccessDeniedException(
+                        "Эта графа закреплена за специалистом и недоступна воспитателю для редактирования");
+            }
+            return;
+        }
+
+        throw new AccessDeniedException("Недостаточно прав для редактирования перспективного плана");
+    }
+
     private PlanSection findSection(UUID id) {
         return sectionRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PlanSection", id));
@@ -188,6 +283,15 @@ public class PlanService {
                 .build();
     }
 
+    private VersionDto toVersionDto(PlanVersion v) {
+        return VersionDto.builder()
+                .id(v.getId()).sectionId(v.getSectionId()).version(v.getVersion())
+                .content(v.getContent()).objectives(v.getObjectives()).materials(v.getMaterials())
+                .changedBy(v.getChangedBy()).changedAt(v.getChangedAt())
+                .changeComment(v.getChangeComment())
+                .build();
+    }
+
     private SectionDto toSectionDto(PlanSection s) {
         return SectionDto.builder()
                 .id(s.getId()).planId(s.getPlanId()).domain(s.getDomain())
@@ -213,5 +317,13 @@ public class PlanService {
         private String domain, domainNameRu, domainNameKk, ownerRole;
         private String content, objectives, materials, status, returnComment;
         private int version, sortOrder;
+    }
+
+    @Data @lombok.Builder
+    public static class VersionDto {
+        private UUID id, sectionId, changedBy;
+        private int version;
+        private String content, objectives, materials, changeComment;
+        private java.time.Instant changedAt;
     }
 }

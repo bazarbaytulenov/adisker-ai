@@ -68,4 +68,11 @@ public class Child extends TenantEntity {
 
     @Column(name = "parent_email")
     private String parentEmail;
+
+    /** Льгота ребёнка: процент скидки на оплату и причина (ТЗ 5.15). */
+    @Column(name = "benefit_percent", nullable = false)
+    private java.math.BigDecimal benefitPercent = java.math.BigDecimal.ZERO;
+
+    @Column(name = "benefit_reason")
+    private String benefitReason;
 }

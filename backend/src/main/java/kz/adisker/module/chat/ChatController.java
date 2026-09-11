@@ -7,7 +7,6 @@ import kz.adisker.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -81,13 +80,13 @@ public class ChatController {
     /**
      * Client sends to: /app/chat.send
      * Payload: { "threadId": "...", "content": "..." }
-     * Server broadcasts to: /topic/chat/{threadId}
+     * Сообщение сохраняется и рассылается подписчикам /topic/chat/{threadId}.
+     * senderId берётся из Principal STOMP-сессии (JWT-аутентификация в интерцепторе).
      */
     @MessageMapping("/chat.send")
-    public void handleMessage(@Payload ChatDto.SendMessagePayload payload,
-                              Principal principal) {
-        // principal.getName() == user email (from JWT/STOMP auth)
-        // For simplicity we rely on REST send; WebSocket just routes the broadcast
-        // Full JWT-in-STOMP auth can be added in ChannelInterceptor
+    public void handleMessage(@Payload ChatDto.SendMessagePayload payload, Principal principal) {
+        if (principal == null || payload.getThreadId() == null) return;
+        UUID senderId = UUID.fromString(principal.getName());
+        service.sendMessageFromThread(payload.getThreadId(), senderId, payload.getContent());
     }
 }

@@ -26,4 +26,6 @@ public class ChildDto {
     private String parentName;
     private String parentPhone;
     private String parentEmail;
+    private java.math.BigDecimal benefitPercent;
+    private String benefitReason;
 }

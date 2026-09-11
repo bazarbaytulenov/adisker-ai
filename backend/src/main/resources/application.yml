@@ -86,6 +86,13 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   invite-base-url: ${INVITE_URL:http://localhost:3000/invite}
 
+# Платёжная интеграция (Kaspi). Этап 2/3: ссылка/QR + ручное подтверждение.
+payment:
+  kaspi:
+    # Шаблон платёжной ссылки. {amount} и {ref} подставляются сервисом.
+    # Официальное API подключается при наличии договора (ТЗ п.19).
+    pay-url-template: ${KASPI_PAY_URL:https://pay.kaspi.kz/pay?amount={amount}&reference={ref}}
+
 logging:
   level:
     kz.adisker: DEBUG
@@ -100,6 +107,9 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+  health:
+    mail:
+      enabled: false
 
 springdoc:
   api-docs:
