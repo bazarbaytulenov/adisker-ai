@@ -25,7 +25,6 @@ const emptyOrgForm = {
   address: '',
   phone: '',
   email: '',
-  dailyRate: '',
 }
 
 // Форма директора создаётся вместе с организацией (только при создании новой).
@@ -60,8 +59,6 @@ export default function OrganizationsPage() {
       e.orgEmail = 'Некорректный email'
     if (orgForm.bin && !/^\d{12}$/.test(orgForm.bin))
       e.bin = 'БИН должен содержать 12 цифр'
-    if (orgForm.dailyRate && Number(orgForm.dailyRate) < 0)
-      e.dailyRate = 'Тариф не может быть отрицательным'
     // директор (если создаём)
     if (!editing && withDirector) {
       if (!dirForm.lastName.trim()) e.lastName = 'Укажите фамилию'
@@ -101,7 +98,6 @@ export default function OrganizationsPage() {
         address: orgForm.address || undefined,
         phone: orgForm.phone || undefined,
         email: orgForm.email || undefined,
-        dailyRate: orgForm.dailyRate ? Number(orgForm.dailyRate) : 0,
       }
 
       if (editing) {
@@ -170,7 +166,6 @@ export default function OrganizationsPage() {
       address: o.address ?? '',
       phone: o.phone ?? '',
       email: o.email ?? '',
-      dailyRate: o.dailyRate != null ? String(o.dailyRate) : '',
     })
     setWithDirector(false)
     setError(null)
@@ -343,7 +338,7 @@ export default function OrganizationsPage() {
               />
             </div>
             <Input label="Адрес" value={orgForm.address} onChange={setOrg('address')} />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Email"
                 type="email"
@@ -353,15 +348,6 @@ export default function OrganizationsPage() {
                 error={show('orgEmail', fieldErr.orgEmail)}
               />
               <Input label="Телефон" value={orgForm.phone} onChange={setOrg('phone')} placeholder="+7..." />
-              <Input
-                label="Тариф/день, ₸"
-                type="number"
-                min={0}
-                value={orgForm.dailyRate}
-                onChange={setOrg('dailyRate')}
-                onBlur={markTouched('dailyRate')}
-                error={show('dailyRate', fieldErr.dailyRate)}
-              />
             </div>
           </div>
 
