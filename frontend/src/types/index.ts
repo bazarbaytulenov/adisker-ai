@@ -65,6 +65,7 @@ export interface Branch {
   headName?: string
   designCapacity?: number
   active: boolean
+  isDefault: boolean
   createdAt: string
 }
 
