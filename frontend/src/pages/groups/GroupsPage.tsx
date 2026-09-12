@@ -45,7 +45,7 @@ export default function GroupsPage() {
     enabled: !!organizationId && (!!branchId || branches.length > 0),
   })
 
-  const activeBranchId = branchId || branches[0]?.id
+  const activeBranchId = branchId || branches[0]?.id || ''
 
   const emptyForm = {
     name: '', branchId: '', language: 'ru', groupType: '',
@@ -55,10 +55,12 @@ export default function GroupsPage() {
 
   const saveMutation = useMutation({
     mutationFn: (d: typeof emptyForm) => {
+      // branchId из формы (если выбирал вручную), иначе — первый доступный филиал
+      const resolvedBranchId = d.branchId || branches[0]?.id || ''
       const payload = {
         ...d,
         organizationId: organizationId ?? undefined,
-        branchId: d.branchId || activeBranchId,
+        branchId: resolvedBranchId,
         ageFromMonths: d.ageFromMonths ? Number(d.ageFromMonths) : undefined,
         ageToMonths: d.ageToMonths ? Number(d.ageToMonths) : undefined,
       }
@@ -72,7 +74,12 @@ export default function GroupsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['groups'] }),
   })
 
-  const openCreate = () => { setEditing(null); setForm({ ...emptyForm, branchId: activeBranchId }); setModalOpen(true) }
+  // При открытии формы сразу прописываем branchId из загруженного списка
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ ...emptyForm, branchId: branches[0]?.id || '' })
+    setModalOpen(true)
+  }
   const openEdit = (g: Group) => {
     setEditing(g)
     setForm({
