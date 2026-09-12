@@ -7,8 +7,10 @@ import {
   Button, Table, Th, Td, Modal, Input, Spinner, Empty, Pagination
 } from '@/components/common'
 import type { Branch } from '@/types'
+import { useT } from '@/i18n'
 
 export default function BranchesPage() {
+  const t = useT()
   const qc = useQueryClient()
   const { organizationId } = useAuthStore()
   const [page, setPage] = useState(0)
@@ -45,7 +47,13 @@ export default function BranchesPage() {
 
   const openEdit = (b: Branch) => {
     setEditing(b)
-    setForm({ name: b.name, address: b.address ?? '', phone: b.phone ?? '', headName: b.headName ?? '', designCapacity: b.designCapacity?.toString() ?? '' })
+    setForm({
+      name: b.name,
+      address: b.address ?? '',
+      phone: b.phone ?? '',
+      headName: b.headName ?? '',
+      designCapacity: b.designCapacity?.toString() ?? '',
+    })
     setModalOpen(true)
   }
 
@@ -57,25 +65,25 @@ export default function BranchesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Филиалы</h1>
-          <p className="text-sm text-gray-500 mt-1">Структурные подразделения организации</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('branches.title')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('branches.subtitle')}</p>
         </div>
         <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" /> Добавить филиал
+          <Plus className="h-4 w-4" /> {t('branches.add')}
         </Button>
       </div>
 
-      {isLoading ? <Spinner /> : pageData?.content.length === 0 ? <Empty message="Нет филиалов" /> : (
+      {isLoading ? <Spinner /> : pageData?.content.length === 0 ? <Empty message={t('branches.empty')} /> : (
         <>
           <Table>
             <thead>
               <tr>
-                <Th>Название</Th>
-                <Th>Руководитель</Th>
-                <Th>Адрес</Th>
-                <Th>Телефон</Th>
-                <Th>Проектная мощность</Th>
-                <Th>Статус</Th>
+                <Th>{t('branches.col.name')}</Th>
+                <Th>{t('branches.col.head')}</Th>
+                <Th>{t('branches.col.address')}</Th>
+                <Th>{t('branches.col.phone')}</Th>
+                <Th>{t('branches.col.capacity')}</Th>
+                <Th>{t('common.status')}</Th>
                 <Th>{''}</Th>
               </tr>
             </thead>
@@ -94,7 +102,7 @@ export default function BranchesPage() {
                   <Td>{b.designCapacity ?? '—'}</Td>
                   <Td>
                     <span className={b.active ? 'badge-green' : 'badge-gray'}>
-                      {b.active ? 'Активен' : 'Архив'}
+                      {b.active ? t('common.active') : t('common.archive')}
                     </span>
                   </Td>
                   <Td>
@@ -103,7 +111,7 @@ export default function BranchesPage() {
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => { if (confirm('Удалить филиал?')) deleteMutation.mutate(b.id) }}
+                        onClick={() => { if (confirm(t('branches.delete.confirm'))) deleteMutation.mutate(b.id) }}
                         className="text-gray-400 hover:text-red-600 transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -115,21 +123,26 @@ export default function BranchesPage() {
             </tbody>
           </Table>
           {pageData && (
-            <Pagination page={page} totalPages={pageData.totalPages} totalElements={pageData.totalElements} onPageChange={setPage} />
+            <Pagination
+              page={page}
+              totalPages={pageData.totalPages}
+              totalElements={pageData.totalElements}
+              onPageChange={setPage}
+            />
           )}
         </>
       )}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? 'Редактировать филиал' : 'Новый филиал'}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('branches.modal.edit') : t('branches.modal.create')}>
         <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form) }} className="space-y-4">
-          <Input label="Название *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Input label="Руководитель" value={form.headName} onChange={(e) => setForm({ ...form, headName: e.target.value })} />
-          <Input label="Адрес" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          <Input label="Телефон" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <Input label="Проектная мощность" type="number" value={form.designCapacity} onChange={(e) => setForm({ ...form, designCapacity: e.target.value })} />
+          <Input label={t('branches.field.name')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <Input label={t('branches.field.head')} value={form.headName} onChange={(e) => setForm({ ...form, headName: e.target.value })} />
+          <Input label={t('branches.field.address')} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          <Input label={t('branches.field.phone')} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <Input label={t('branches.field.capacity')} type="number" value={form.designCapacity} onChange={(e) => setForm({ ...form, designCapacity: e.target.value })} />
           <div className="flex gap-3 justify-end pt-2">
-            <Button type="button" variant="secondary" onClick={closeModal}>Отмена</Button>
-            <Button type="submit" loading={saveMutation.isPending}>Сохранить</Button>
+            <Button type="button" variant="secondary" onClick={closeModal}>{t('common.cancel')}</Button>
+            <Button type="submit" loading={saveMutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
       </Modal>

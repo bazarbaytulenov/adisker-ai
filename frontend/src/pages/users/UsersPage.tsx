@@ -8,25 +8,7 @@ import {
 } from '@/components/common'
 import type { User, RoleCode } from '@/types'
 import { format, parseISO } from 'date-fns'
-
-const ROLES: { value: RoleCode; label: string }[] = [
-  { value: 'SYSTEM_ADMIN',   label: 'Системный админ' },
-  { value: 'FOUNDER',        label: 'Учредитель' },
-  { value: 'DIRECTOR',       label: 'Руководитель' },
-  { value: 'METHODIST',      label: 'Методист' },
-  { value: 'EDUCATOR',       label: 'Воспитатель' },
-  { value: 'KAZ_TEACHER',    label: 'Педагог казахского' },
-  { value: 'MUSIC_TEACHER',  label: 'Муз. руководитель' },
-  { value: 'PE_INSTRUCTOR',  label: 'Инструктор по физ.' },
-  { value: 'NURSE',          label: 'Медсестра' },
-  { value: 'JANITOR',        label: 'Завхоз' },
-  { value: 'ACCOUNTANT',     label: 'Бухгалтер' },
-  { value: 'PARENT',         label: 'Родитель' },
-]
-
-const ROLE_LABELS: Record<RoleCode, string> = Object.fromEntries(
-  ROLES.map((r) => [r.value, r.label])
-) as Record<RoleCode, string>
+import { useT } from '@/i18n'
 
 const emptyForm = {
   firstName: '',
@@ -40,6 +22,7 @@ const emptyForm = {
 }
 
 export default function UsersPage() {
+  const t = useT()
   const qc = useQueryClient()
   const { organizationId } = useAuthStore()
   const [page, setPage] = useState(0)
@@ -48,6 +31,26 @@ export default function UsersPage() {
   const [form, setForm] = useState(emptyForm)
   const [confirmDeactivate, setConfirmDeactivate] = useState<User | null>(null)
 
+  // Role labels using translations
+  const ROLES: { value: RoleCode; label: string }[] = [
+    { value: 'SYSTEM_ADMIN',   label: t('users.role.systemAdmin') },
+    { value: 'FOUNDER',        label: t('users.role.founder') },
+    { value: 'DIRECTOR',       label: t('users.role.director') },
+    { value: 'METHODIST',      label: t('users.role.methodist') },
+    { value: 'EDUCATOR',       label: t('users.role.educator') },
+    { value: 'KAZ_TEACHER',    label: t('users.role.kazTeacher') },
+    { value: 'MUSIC_TEACHER',  label: t('users.role.musicTeacher') },
+    { value: 'PE_INSTRUCTOR',  label: t('users.role.peInstructor') },
+    { value: 'NURSE',          label: t('users.role.nurse') },
+    { value: 'JANITOR',        label: t('users.role.janitor') },
+    { value: 'ACCOUNTANT',     label: t('users.role.accountant') },
+    { value: 'PARENT',         label: t('users.role.parent') },
+  ]
+
+  const ROLE_LABELS: Record<RoleCode, string> = Object.fromEntries(
+    ROLES.map((r) => [r.value, r.label])
+  ) as Record<RoleCode, string>
+
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
     queryKey: ['users', organizationId, page],
@@ -55,7 +58,6 @@ export default function UsersPage() {
     enabled: !!organizationId,
   })
 
-  // Роли, которые текущий пользователь вправе назначать (совпадает с backend RBAC)
   const { data: rolesData } = useQuery({
     queryKey: ['assignable-roles'],
     queryFn: () => userApi.assignableRoles(),
@@ -92,11 +94,7 @@ export default function UsersPage() {
   })
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const openCreate = () => {
-    setEditing(null)
-    setForm(emptyForm)
-    setModalOpen(true)
-  }
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setModalOpen(true) }
 
   const openEdit = (u: User) => {
     setEditing(u)
@@ -113,11 +111,7 @@ export default function UsersPage() {
     setModalOpen(true)
   }
 
-  const closeModal = () => {
-    setModalOpen(false)
-    setEditing(null)
-    setForm(emptyForm)
-  }
+  const closeModal = () => { setModalOpen(false); setEditing(null); setForm(emptyForm) }
 
   const set =
     (k: keyof typeof emptyForm) =>
@@ -142,11 +136,7 @@ export default function UsersPage() {
       ACCOUNTANT: 'badge-orange',
       PARENT: 'badge-teal',
     }
-    return (
-      <span className={colorMap[role] ?? 'badge-gray'}>
-        {ROLE_LABELS[role] ?? role}
-      </span>
-    )
+    return <span className={colorMap[role] ?? 'badge-gray'}>{ROLE_LABELS[role] ?? role}</span>
   }
 
   return (
@@ -154,11 +144,11 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Пользователи</h1>
-          <p className="text-sm text-gray-500 mt-1">Управление сотрудниками организации</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('users.title')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('users.subtitle')}</p>
         </div>
         <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" /> Добавить пользователя
+          <Plus className="h-4 w-4" /> {t('users.add')}
         </Button>
       </div>
 
@@ -166,18 +156,18 @@ export default function UsersPage() {
       {isLoading ? (
         <Spinner />
       ) : pageData?.content.length === 0 ? (
-        <Empty message="Нет пользователей" />
+        <Empty message={t('users.empty')} />
       ) : (
         <>
           <Table>
             <thead>
               <tr>
-                <Th>ФИО</Th>
-                <Th>Email / Телефон</Th>
-                <Th>Роль</Th>
-                <Th>Язык</Th>
-                <Th>Последний вход</Th>
-                <Th>Статус</Th>
+                <Th>{t('users.col.fio')}</Th>
+                <Th>{t('users.col.emailPhone')}</Th>
+                <Th>{t('users.col.role')}</Th>
+                <Th>{t('users.col.language')}</Th>
+                <Th>{t('users.col.lastLogin')}</Th>
+                <Th>{t('common.status')}</Th>
                 <Th>{''}</Th>
               </tr>
             </thead>
@@ -207,15 +197,13 @@ export default function UsersPage() {
                     </span>
                   </Td>
                   <Td>
-                    {u.lastLoginAt
-                      ? format(parseISO(u.lastLoginAt), 'dd.MM.yyyy HH:mm')
-                      : '—'}
+                    {u.lastLoginAt ? format(parseISO(u.lastLoginAt), 'dd.MM.yyyy HH:mm') : '—'}
                   </Td>
                   <Td>
                     {u.active ? (
-                      <span className="badge-green">Активен</span>
+                      <span className="badge-green">{t('users.status.active')}</span>
                     ) : (
-                      <span className="badge-red">Деактивирован</span>
+                      <span className="badge-red">{t('users.status.deactivated')}</span>
                     )}
                   </Td>
                   <Td>
@@ -223,7 +211,7 @@ export default function UsersPage() {
                       <button
                         onClick={() => openEdit(u)}
                         className="text-gray-400 hover:text-primary-600 transition-colors"
-                        title="Редактировать"
+                        title={t('common.edit')}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -231,7 +219,7 @@ export default function UsersPage() {
                         <button
                           onClick={() => setConfirmDeactivate(u)}
                           className="text-gray-400 hover:text-red-600 transition-colors"
-                          title="Деактивировать"
+                          title={t('users.deactivate.action')}
                         >
                           <UserX className="h-4 w-4" />
                         </button>
@@ -259,41 +247,38 @@ export default function UsersPage() {
       <Modal
         open={modalOpen}
         onClose={closeModal}
-        title={editing ? 'Редактировать пользователя' : 'Новый пользователь'}
+        title={editing ? t('users.modal.edit') : t('users.modal.create')}
         width="max-w-2xl"
       >
         <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            saveMutation.mutate(form)
-          }}
+          onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form) }}
           className="space-y-4"
         >
           <div className="grid grid-cols-3 gap-3">
-            <Input label="Фамилия *" value={form.lastName} onChange={set('lastName')} required />
-            <Input label="Имя *" value={form.firstName} onChange={set('firstName')} required />
-            <Input label="Отчество" value={form.middleName} onChange={set('middleName')} />
+            <Input label={t('users.field.lastName')} value={form.lastName} onChange={set('lastName')} required />
+            <Input label={t('users.field.firstName')} value={form.firstName} onChange={set('firstName')} required />
+            <Input label={t('users.field.middleName')} value={form.middleName} onChange={set('middleName')} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Email *" type="email" value={form.email} onChange={set('email')} required />
-            <Input label="Телефон" value={form.phone} onChange={set('phone')} placeholder="+7..." />
+            <Input label={t('users.field.email')} type="email" value={form.email} onChange={set('email')} required />
+            <Input label={t('users.field.phone')} value={form.phone} onChange={set('phone')} placeholder="+7..." />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Select
-              label="Роль *"
+              label={t('users.field.role')}
               options={roleOptions}
               value={form.roleCode}
               onChange={set('roleCode')}
-              placeholder="Выберите роль"
+              placeholder={t('users.field.rolePlaceholder')}
               required
             />
             <Select
-              label="Язык интерфейса"
+              label={t('users.field.language')}
               options={[
-                { value: 'ru', label: 'Русский' },
-                { value: 'kk', label: 'Қазақша' },
+                { value: 'ru', label: t('groups.lang.ru') },
+                { value: 'kk', label: t('groups.lang.kk') },
               ]}
               value={form.preferredLanguage}
               onChange={set('preferredLanguage')}
@@ -302,23 +287,19 @@ export default function UsersPage() {
 
           {!editing && (
             <Input
-              label="Пароль *"
+              label={t('users.field.password')}
               type="password"
               value={form.password}
               onChange={set('password')}
               required={!editing}
-              placeholder="Минимум 8 символов"
+              placeholder={t('users.field.passwordPlaceholder')}
               minLength={8}
             />
           )}
 
           <div className="flex gap-3 justify-end pt-2">
-            <Button type="button" variant="secondary" onClick={closeModal}>
-              Отмена
-            </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
-              Сохранить
-            </Button>
+            <Button type="button" variant="secondary" onClick={closeModal}>{t('common.cancel')}</Button>
+            <Button type="submit" loading={saveMutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
       </Modal>
@@ -327,33 +308,27 @@ export default function UsersPage() {
       <Modal
         open={!!confirmDeactivate}
         onClose={() => setConfirmDeactivate(null)}
-        title="Деактивировать пользователя"
+        title={t('users.modal.deactivate')}
         width="max-w-md"
       >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Вы уверены, что хотите деактивировать пользователя{' '}
+            {t('users.deactivate.confirm')}{' '}
             <strong>
               {confirmDeactivate?.lastName} {confirmDeactivate?.firstName}
             </strong>
-            ? Пользователь не сможет войти в систему.
+            {t('users.deactivate.note')}
           </p>
           <div className="flex gap-3 justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setConfirmDeactivate(null)}
-            >
-              Отмена
+            <Button type="button" variant="secondary" onClick={() => setConfirmDeactivate(null)}>
+              {t('common.cancel')}
             </Button>
             <Button
               variant="danger"
               loading={deactivateMutation.isPending}
-              onClick={() =>
-                confirmDeactivate && deactivateMutation.mutate(confirmDeactivate.id)
-              }
+              onClick={() => confirmDeactivate && deactivateMutation.mutate(confirmDeactivate.id)}
             >
-              Деактивировать
+              {t('users.deactivate.action')}
             </Button>
           </div>
         </div>

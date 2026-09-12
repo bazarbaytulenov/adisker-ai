@@ -7,28 +7,28 @@ import {
   Button, Table, Th, Td, Modal, Input, Select, Spinner, Empty, Pagination
 } from '@/components/common'
 import type { Group } from '@/types'
-
-const GROUP_TYPES = [
-  { value: 'full_day',   label: 'Полный день' },
-  { value: 'short_day',  label: 'Кратковременное пребывание' },
-  { value: 'mixed_age',  label: 'Разновозрастная' },
-  { value: 'special',    label: 'Специальная' },
-]
-
-const emptyForm = {
-  name: '', branchId: '', language: 'ru', groupType: '',
-  ageFromMonths: '', ageToMonths: '', academicYear: '2025-2026',
-  educatorPhone: '', educatorEmail: '',
-}
+import { useT } from '@/i18n'
 
 export default function GroupsPage() {
+  const t = useT()
   const qc = useQueryClient()
   const { organizationId } = useAuthStore()
   const [page, setPage] = useState(0)
   const [branchId, setBranchId] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Group | null>(null)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState({
+    name: '', branchId: '', language: 'ru', groupType: '',
+    ageFromMonths: '', ageToMonths: '', academicYear: '2025-2026',
+    educatorPhone: '', educatorEmail: '',
+  })
+
+  const GROUP_TYPES = [
+    { value: 'full_day',   label: t('groups.type.fullDay') },
+    { value: 'short_day',  label: t('groups.type.shortDay') },
+    { value: 'mixed_age',  label: t('groups.type.mixedAge') },
+    { value: 'special',    label: t('groups.type.special') },
+  ]
 
   const { data: branchesRes } = useQuery({
     queryKey: ['branches-active', organizationId],
@@ -37,6 +37,7 @@ export default function GroupsPage() {
   })
   const branches = branchesRes?.data.data ?? []
   const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }))
+  const showBranchSelector = branches.length > 1 || (branches.length === 1 && !branches[0].isDefault)
 
   const { data, isLoading } = useQuery({
     queryKey: ['groups', organizationId, branchId, page],
@@ -46,8 +47,14 @@ export default function GroupsPage() {
 
   const activeBranchId = branchId || branches[0]?.id
 
+  const emptyForm = {
+    name: '', branchId: '', language: 'ru', groupType: '',
+    ageFromMonths: '', ageToMonths: '', academicYear: '2025-2026',
+    educatorPhone: '', educatorEmail: '',
+  }
+
   const saveMutation = useMutation({
-    mutationFn: (d: typeof form) => {
+    mutationFn: (d: typeof emptyForm) => {
       const payload = {
         ...d,
         organizationId: organizationId ?? undefined,
@@ -86,34 +93,34 @@ export default function GroupsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Группы</h1>
-          <p className="text-sm text-gray-500 mt-1">Возрастные группы воспитанников</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('groups.title')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('groups.subtitle')}</p>
         </div>
-        <Button onClick={openCreate}><Plus className="h-4 w-4" /> Добавить группу</Button>
+        <Button onClick={openCreate}><Plus className="h-4 w-4" /> {t('groups.add')}</Button>
       </div>
 
-      {branchOptions.length > 0 && (
+      {showBranchSelector && (
         <Select
-          label="Фильтр по филиалу"
+          label={t('common.filterByBranch')}
           options={branchOptions}
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
-          placeholder="Все филиалы"
+          placeholder={t('common.allBranches')}
           className="max-w-xs"
         />
       )}
 
-      {isLoading ? <Spinner /> : pageData?.content.length === 0 ? <Empty message="Нет групп" /> : (
+      {isLoading ? <Spinner /> : pageData?.content.length === 0 ? <Empty message={t('groups.empty')} /> : (
         <>
           <Table>
             <thead>
               <tr>
-                <Th>Название</Th>
-                <Th>Тип</Th>
-                <Th>Язык</Th>
-                <Th>Возраст (мес.)</Th>
-                <Th>Учебный год</Th>
-                <Th>Статус</Th>
+                <Th>{t('groups.col.name')}</Th>
+                <Th>{t('groups.col.type')}</Th>
+                <Th>{t('groups.col.language')}</Th>
+                <Th>{t('groups.col.ageMonths')}</Th>
+                <Th>{t('groups.col.academicYear')}</Th>
+                <Th>{t('common.status')}</Th>
                 <Th>{''}</Th>
               </tr>
             </thead>
@@ -121,15 +128,30 @@ export default function GroupsPage() {
               {pageData?.content.map((g) => (
                 <tr key={g.id} className="hover:bg-gray-50">
                   <Td><span className="font-medium">{g.name}</span></Td>
-                  <Td>{GROUP_TYPES.find((t) => t.value === g.groupType)?.label ?? g.groupType ?? '—'}</Td>
-                  <Td><span className={g.language === 'kk' ? 'badge-blue' : 'badge-gray'}>{g.language === 'kk' ? 'Қазақша' : 'Русский'}</span></Td>
+                  <Td>{GROUP_TYPES.find((tp) => tp.value === g.groupType)?.label ?? g.groupType ?? '—'}</Td>
+                  <Td>
+                    <span className={g.language === 'kk' ? 'badge-blue' : 'badge-gray'}>
+                      {g.language === 'kk' ? t('groups.lang.kk') : t('groups.lang.ru')}
+                    </span>
+                  </Td>
                   <Td>{g.ageFromMonths && g.ageToMonths ? `${g.ageFromMonths}–${g.ageToMonths}` : '—'}</Td>
                   <Td>{g.academicYear ?? '—'}</Td>
-                  <Td><span className={g.active ? 'badge-green' : 'badge-gray'}>{g.active ? 'Активна' : 'Архив'}</span></Td>
+                  <Td>
+                    <span className={g.active ? 'badge-green' : 'badge-gray'}>
+                      {g.active ? t('common.active') : t('common.archive')}
+                    </span>
+                  </Td>
                   <Td>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(g)} className="text-gray-400 hover:text-primary-600 transition-colors"><Pencil className="h-4 w-4" /></button>
-                      <button onClick={() => { if (confirm('Удалить группу?')) deleteMutation.mutate(g.id) }} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                      <button onClick={() => openEdit(g)} className="text-gray-400 hover:text-primary-600 transition-colors">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(t('groups.delete.confirm'))) deleteMutation.mutate(g.id) }}
+                        className="text-gray-400 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </Td>
                 </tr>
@@ -140,24 +162,38 @@ export default function GroupsPage() {
         </>
       )}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? 'Редактировать группу' : 'Новая группа'}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('groups.modal.edit') : t('groups.modal.create')}>
         <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form) }} className="space-y-4">
-          <Input label="Название *" value={form.name} onChange={set('name')} required />
-          {branchOptions.length > 0 && (
-            <Select label="Филиал *" options={branchOptions} value={form.branchId} onChange={set('branchId')} required />
+          <Input label={t('groups.field.name')} value={form.name} onChange={set('name')} required />
+          {showBranchSelector && (
+            <Select label={t('groups.field.branch')} options={branchOptions} value={form.branchId} onChange={set('branchId')} required />
           )}
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Язык" options={[{ value: 'ru', label: 'Русский' }, { value: 'kk', label: 'Қазақша' }]} value={form.language} onChange={set('language')} />
-            <Select label="Тип группы" options={GROUP_TYPES} value={form.groupType} onChange={set('groupType')} placeholder="Не указан" />
+            <Select
+              label={t('groups.field.language')}
+              options={[
+                { value: 'ru', label: t('groups.lang.ru') },
+                { value: 'kk', label: t('groups.lang.kk') },
+              ]}
+              value={form.language}
+              onChange={set('language')}
+            />
+            <Select
+              label={t('groups.field.type')}
+              options={GROUP_TYPES}
+              value={form.groupType}
+              onChange={set('groupType')}
+              placeholder={t('groups.type.notSet')}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Возраст от (мес.)" type="number" value={form.ageFromMonths} onChange={set('ageFromMonths')} />
-            <Input label="Возраст до (мес.)" type="number" value={form.ageToMonths} onChange={set('ageToMonths')} />
+            <Input label={t('groups.field.ageFrom')} type="number" value={form.ageFromMonths} onChange={set('ageFromMonths')} />
+            <Input label={t('groups.field.ageTo')} type="number" value={form.ageToMonths} onChange={set('ageToMonths')} />
           </div>
-          <Input label="Учебный год" value={form.academicYear} onChange={set('academicYear')} placeholder="2025-2026" />
+          <Input label={t('groups.field.academicYear')} value={form.academicYear} onChange={set('academicYear')} placeholder="2025-2026" />
           <div className="flex gap-3 justify-end pt-2">
-            <Button type="button" variant="secondary" onClick={closeModal}>Отмена</Button>
-            <Button type="submit" loading={saveMutation.isPending}>Сохранить</Button>
+            <Button type="button" variant="secondary" onClick={closeModal}>{t('common.cancel')}</Button>
+            <Button type="submit" loading={saveMutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
       </Modal>

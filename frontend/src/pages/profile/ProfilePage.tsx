@@ -4,8 +4,10 @@ import { KeyRound, User as UserIcon } from 'lucide-react'
 import { userApi } from '@/api'
 import { useAuthStore } from '@/store/authStore'
 import { Button, Input, Card } from '@/components/common'
+import { useT } from '@/i18n'
 
 export default function ProfilePage() {
+  const t = useT()
   const { fullName, roleCode } = useAuthStore()
 
   const [current, setCurrent] = useState('')
@@ -22,21 +24,21 @@ export default function ProfilePage() {
     },
     onError: (e: any) => {
       setOk(false)
-      setErr(e?.response?.data?.message ?? 'Не удалось сменить пароль')
+      setErr(e?.response?.data?.message ?? t('profile.error.default'))
     },
   })
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     setOk(false); setErr(null)
-    if (next.length < 6) { setErr('Новый пароль должен быть не короче 6 символов'); return }
-    if (next !== repeat) { setErr('Пароли не совпадают'); return }
+    if (next.length < 6) { setErr(t('profile.error.tooShort')); return }
+    if (next !== repeat) { setErr(t('profile.error.mismatch')); return }
     mutation.mutate()
   }
 
   return (
     <div className="space-y-4 max-w-lg">
-      <h1 className="text-2xl font-bold text-gray-800">Профиль</h1>
+      <h1 className="text-2xl font-bold text-gray-800">{t('profile.title')}</h1>
 
       <Card>
         <div className="flex items-center gap-3">
@@ -52,11 +54,11 @@ export default function ProfilePage() {
 
       <Card>
         <h2 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <KeyRound className="h-4 w-4 text-primary-600" /> Смена пароля
+          <KeyRound className="h-4 w-4 text-primary-600" /> {t('profile.changePassword')}
         </h2>
         <form onSubmit={submit} className="space-y-3">
           <Input
-            label="Текущий пароль"
+            label={t('profile.field.currentPassword')}
             type="password"
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
@@ -64,17 +66,17 @@ export default function ProfilePage() {
             autoComplete="current-password"
           />
           <Input
-            label="Новый пароль"
+            label={t('profile.field.newPassword')}
             type="password"
             value={next}
             onChange={(e) => setNext(e.target.value)}
             required
             minLength={6}
-            placeholder="Минимум 6 символов"
+            placeholder={t('profile.field.newPasswordPlaceholder')}
             autoComplete="new-password"
           />
           <Input
-            label="Повторите новый пароль"
+            label={t('profile.field.repeatPassword')}
             type="password"
             value={repeat}
             onChange={(e) => setRepeat(e.target.value)}
@@ -82,11 +84,11 @@ export default function ProfilePage() {
             autoComplete="new-password"
           />
 
-          {ok && <p className="text-sm text-green-600">Пароль изменён</p>}
+          {ok && <p className="text-sm text-green-600">{t('profile.success')}</p>}
           {err && <p className="text-sm text-red-600">{err}</p>}
 
           <div className="pt-1">
-            <Button type="submit" loading={mutation.isPending}>Сменить пароль</Button>
+            <Button type="submit" loading={mutation.isPending}>{t('profile.changeBtn')}</Button>
           </div>
         </form>
       </Card>

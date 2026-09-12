@@ -7,6 +7,7 @@ import {
 } from '@/components/common'
 import type { Organization, User } from '@/types'
 import { format, parseISO } from 'date-fns'
+import { useT } from '@/i18n'
 
 /** Достаёт человекочитаемое сообщение из ошибки axios/backend, включая ошибки валидации. */
 function extractError(e: any): string {
@@ -27,7 +28,6 @@ const emptyOrgForm = {
   email: '',
 }
 
-// Форма директора создаётся вместе с организацией (только при создании новой).
 const emptyDirForm = {
   lastName: '',
   firstName: '',
@@ -38,6 +38,7 @@ const emptyDirForm = {
 }
 
 export default function OrganizationsPage() {
+  const t = useT()
   const qc = useQueryClient()
   const [page, setPage] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
@@ -49,17 +50,16 @@ export default function OrganizationsPage() {
   const [adminOrg, setAdminOrg] = useState<Organization | null>(null)
   const [fieldErr, setFieldErr] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
 
-  // ── Валидация формы (клиентская, синхронно с backend-правилами) ─────────────
+  // ── Валидация формы ────────────────────────────────────────────────────────
   const validate = (): Record<string, string> => {
     const e: Record<string, string> = {}
-    // организация
     if (!orgForm.name.trim()) e.name = 'Укажите название'
     if (orgForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(orgForm.email))
       e.orgEmail = 'Некорректный email'
     if (orgForm.bin && !/^\d{12}$/.test(orgForm.bin))
       e.bin = 'БИН должен содержать 12 цифр'
-    // директор (если создаём)
     if (!editing && withDirector) {
       if (!dirForm.lastName.trim()) e.lastName = 'Укажите фамилию'
       if (!dirForm.firstName.trim()) e.firstName = 'Укажите имя'
@@ -73,12 +73,9 @@ export default function OrganizationsPage() {
   }
 
   const markTouched = (k: string) => () => setTouched((t) => ({ ...t, [k]: true }))
-  // ошибку показываем, если поле трогали ИЛИ была попытка отправки (submitAttempted)
-  const [submitAttempted, setSubmitAttempted] = useState(false)
   const show = (k: string, msg?: string) =>
     msg && (touched[k] || submitAttempted) ? msg : undefined
 
-  // Живой пересчёт ошибок при вводе, чтобы подсказки исчезали по мере исправления.
   useEffect(() => {
     if (modalOpen) setFieldErr(validate())
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -105,12 +102,10 @@ export default function OrganizationsPage() {
         return
       }
 
-      // 1) создать организацию
       const res = await orgApi.create(orgPayload)
       const orgId = res.data.data?.id
       if (!orgId) throw new Error('Не удалось создать организацию')
 
-      // 2) при необходимости — создать директора этой организации
       if (withDirector) {
         try {
           await userApi.create({
@@ -125,8 +120,6 @@ export default function OrganizationsPage() {
             password: dirForm.password,
           })
         } catch (e) {
-          // организация уже создана — сообщаем об этом явно, чтобы админа можно было
-          // добавить позже через кнопку-ключ, а не создавать организацию заново
           throw new Error(
             `Организация «${orgForm.name}» создана, но администратора добавить не удалось: ` +
               extractError(e) +
@@ -200,31 +193,28 @@ export default function OrganizationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Организации</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Добавление дошкольных организаций и назначение их руководителей
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('orgs.title')}</h1>
         </div>
         <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" /> Добавить организацию
+          <Plus className="h-4 w-4" /> {t('orgs.add')}
         </Button>
       </div>
 
       {isLoading ? (
         <Spinner />
       ) : pageData?.content.length === 0 ? (
-        <Empty message="Нет организаций" />
+        <Empty message={t('orgs.empty')} />
       ) : (
         <>
           <Table>
             <thead>
               <tr>
-                <Th>Название</Th>
-                <Th>БИН</Th>
-                <Th>Контакты</Th>
-                <Th>Тариф/день</Th>
-                <Th>Создана</Th>
-                <Th>Статус</Th>
+                <Th>{t('orgs.col.name')}</Th>
+                <Th>{t('orgs.col.bin')}</Th>
+                <Th>{t('common.email')} / {t('common.phone')}</Th>
+                <Th>{t('settings.payment.rate')}</Th>
+                <Th>{t('orgs.col.created')}</Th>
+                <Th>{t('common.status')}</Th>
                 <Th>{''}</Th>
               </tr>
             </thead>
@@ -256,9 +246,9 @@ export default function OrganizationsPage() {
                   <Td>{o.createdAt ? format(parseISO(o.createdAt), 'dd.MM.yyyy') : '—'}</Td>
                   <Td>
                     {o.active ? (
-                      <span className="badge-green">Активна</span>
+                      <span className="badge-green">{t('common.active')}</span>
                     ) : (
-                      <span className="badge-red">Отключена</span>
+                      <span className="badge-red">{t('common.archive')}</span>
                     )}
                   </Td>
                   <Td>
@@ -266,14 +256,14 @@ export default function OrganizationsPage() {
                       <button
                         onClick={() => openEdit(o)}
                         className="text-gray-400 hover:text-primary-600 transition-colors"
-                        title="Редактировать"
+                        title={t('common.edit')}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setAdminOrg(o)}
                         className="text-gray-400 hover:text-primary-600 transition-colors"
-                        title="Администратор организации"
+                        title={t('orgs.director.title')}
                       >
                         <KeyRound className="h-4 w-4" />
                       </button>
@@ -297,7 +287,7 @@ export default function OrganizationsPage() {
       <Modal
         open={modalOpen}
         onClose={closeModal}
-        title={editing ? 'Редактировать организацию' : 'Новая организация'}
+        title={editing ? t('orgs.modal.edit') : t('orgs.modal.create')}
         width="max-w-2xl"
       >
         <form
@@ -315,10 +305,10 @@ export default function OrganizationsPage() {
           {/* Данные организации */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-              <Building2 className="h-4 w-4 text-primary-600" /> Данные организации
+              <Building2 className="h-4 w-4 text-primary-600" /> {t('orgs.modal.create')}
             </div>
             <Input
-              label="Название *"
+              label={t('orgs.field.name')}
               value={orgForm.name}
               onChange={setOrg('name')}
               onBlur={markTouched('name')}
@@ -326,9 +316,9 @@ export default function OrganizationsPage() {
               required
             />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Юр. название" value={orgForm.legalName} onChange={setOrg('legalName')} />
+              <Input label={t('orgs.field.legalName')} value={orgForm.legalName} onChange={setOrg('legalName')} />
               <Input
-                label="БИН"
+                label={t('orgs.field.bin')}
                 value={orgForm.bin}
                 onChange={setOrg('bin')}
                 onBlur={markTouched('bin')}
@@ -337,17 +327,17 @@ export default function OrganizationsPage() {
                 inputMode="numeric"
               />
             </div>
-            <Input label="Адрес" value={orgForm.address} onChange={setOrg('address')} />
+            <Input label={t('orgs.field.address')} value={orgForm.address} onChange={setOrg('address')} />
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Email"
+                label={t('orgs.field.email')}
                 type="email"
                 value={orgForm.email}
                 onChange={setOrg('email')}
                 onBlur={markTouched('orgEmail')}
                 error={show('orgEmail', fieldErr.orgEmail)}
               />
-              <Input label="Телефон" value={orgForm.phone} onChange={setOrg('phone')} placeholder="+7..." />
+              <Input label={t('orgs.field.phone')} value={orgForm.phone} onChange={setOrg('phone')} placeholder="+7..." />
             </div>
           </div>
 
@@ -362,14 +352,14 @@ export default function OrganizationsPage() {
                   className="h-4 w-4 rounded border-gray-300"
                 />
                 <Users className="h-4 w-4 text-primary-600" />
-                Создать руководителя (директора) организации
+                {t('orgs.director.toggle')}
               </label>
 
               {withDirector && (
                 <div className="space-y-3 pl-6">
                   <div className="grid grid-cols-3 gap-3">
                     <Input
-                      label="Фамилия *"
+                      label={t('orgs.director.lastName')}
                       value={dirForm.lastName}
                       onChange={setDir('lastName')}
                       onBlur={markTouched('lastName')}
@@ -377,18 +367,18 @@ export default function OrganizationsPage() {
                       required={withDirector}
                     />
                     <Input
-                      label="Имя *"
+                      label={t('orgs.director.firstName')}
                       value={dirForm.firstName}
                       onChange={setDir('firstName')}
                       onBlur={markTouched('firstName')}
                       error={show('firstName', fieldErr.firstName)}
                       required={withDirector}
                     />
-                    <Input label="Отчество" value={dirForm.middleName} onChange={setDir('middleName')} />
+                    <Input label={t('orgs.director.middleName')} value={dirForm.middleName} onChange={setDir('middleName')} />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Input
-                      label="Email *"
+                      label={t('orgs.director.email')}
                       type="email"
                       value={dirForm.email}
                       onChange={setDir('email')}
@@ -396,10 +386,10 @@ export default function OrganizationsPage() {
                       error={show('dirEmail', fieldErr.dirEmail)}
                       required={withDirector}
                     />
-                    <Input label="Телефон" value={dirForm.phone} onChange={setDir('phone')} placeholder="+7..." />
+                    <Input label={t('orgs.director.phone')} value={dirForm.phone} onChange={setDir('phone')} placeholder="+7..." />
                   </div>
                   <Input
-                    label="Пароль *"
+                    label={t('orgs.director.password')}
                     type="password"
                     value={dirForm.password}
                     onChange={setDir('password')}
@@ -418,24 +408,32 @@ export default function OrganizationsPage() {
 
           <div className="flex gap-3 justify-end pt-2">
             <Button type="button" variant="secondary" onClick={closeModal}>
-              Отмена
+              {t('common.cancel')}
             </Button>
             <Button type="submit" loading={saveMutation.isPending}>
-              Сохранить
+              {t('common.save')}
             </Button>
           </div>
         </form>
       </Modal>
 
       {adminOrg && (
-        <AdminModal org={adminOrg} onClose={() => setAdminOrg(null)} />
+        <AdminModal org={adminOrg} onClose={() => setAdminOrg(null)} t={t} />
       )}
     </div>
   )
 }
 
 // ─── Управление админом (директором) организации ──────────────────────────────
-function AdminModal({ org, onClose }: { org: Organization; onClose: () => void }) {
+function AdminModal({
+  org,
+  onClose,
+  t,
+}: {
+  org: Organization
+  onClose: () => void
+  t: (key: string) => string
+}) {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['org-admins', org.id],
     queryFn: () => userApi.orgAdmins(org.id),
@@ -447,14 +445,13 @@ function AdminModal({ org, onClose }: { org: Organization; onClose: () => void }
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  // форма создания нового админа, если его нет
   const [newAdmin, setNewAdmin] = useState({
     lastName: '', firstName: '', middleName: '', email: '', phone: '', password: '',
   })
 
   const resetMutation = useMutation({
     mutationFn: () => userApi.resetPassword(target!.id, pwd),
-    onSuccess: () => { setMsg('Пароль обновлён'); setErr(null); setTarget(null); setPwd('') },
+    onSuccess: () => { setMsg(t('common.saved')); setErr(null); setTarget(null); setPwd('') },
     onError: (e: any) => setErr(extractError(e)),
   })
 
@@ -471,7 +468,7 @@ function AdminModal({ org, onClose }: { org: Organization; onClose: () => void }
       password: newAdmin.password,
     }),
     onSuccess: () => {
-      setMsg('Администратор создан'); setErr(null)
+      setMsg(t('common.saved')); setErr(null)
       setNewAdmin({ lastName: '', firstName: '', middleName: '', email: '', phone: '', password: '' })
       refetch()
     },
@@ -482,7 +479,7 @@ function AdminModal({ org, onClose }: { org: Organization; onClose: () => void }
     setNewAdmin((f) => ({ ...f, [k]: e.target.value }))
 
   return (
-    <Modal open onClose={onClose} title={`Администратор: ${org.name}`} width="max-w-xl">
+    <Modal open onClose={onClose} title={`${t('orgs.director.title')}: ${org.name}`} width="max-w-xl">
       {isLoading ? (
         <Spinner />
       ) : (
@@ -492,17 +489,17 @@ function AdminModal({ org, onClose }: { org: Organization; onClose: () => void }
 
           {admins.length > 0 ? (
             <div className="space-y-3">
-              <div className="text-sm font-semibold text-gray-700">Текущие администраторы</div>
+              <div className="text-sm font-semibold text-gray-700">{t('users.modal.edit')}</div>
               {admins.map((a) => (
                 <div key={a.id} className="rounded-lg border border-gray-100 p-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-medium">{a.lastName} {a.firstName} {a.middleName ?? ''}</div>
                       <div className="text-sm text-gray-500">{a.email}</div>
-                      {!a.active && <span className="badge-red mt-1 inline-block">Деактивирован</span>}
+                      {!a.active && <span className="badge-red mt-1 inline-block">{t('users.status.deactivated')}</span>}
                     </div>
                     <Button size="sm" variant="secondary" onClick={() => { setTarget(a); setMsg(null); setErr(null) }}>
-                      <KeyRound className="h-4 w-4" /> Сбросить пароль
+                      <KeyRound className="h-4 w-4" /> {t('profile.changePassword')}
                     </Button>
                   </div>
 
@@ -512,17 +509,17 @@ function AdminModal({ org, onClose }: { org: Organization; onClose: () => void }
                       onSubmit={(e) => { e.preventDefault(); resetMutation.mutate() }}
                     >
                       <Input
-                        label="Новый пароль"
+                        label={t('profile.field.newPassword')}
                         type="text"
                         value={pwd}
                         onChange={(e) => setPwd(e.target.value)}
-                        placeholder="Минимум 6 символов"
+                        placeholder={t('profile.field.newPasswordPlaceholder')}
                         minLength={6}
                         required
                         className="flex-1"
                       />
-                      <Button type="submit" size="sm" loading={resetMutation.isPending}>Сохранить</Button>
-                      <Button type="button" size="sm" variant="secondary" onClick={() => { setTarget(null); setPwd('') }}>Отмена</Button>
+                      <Button type="submit" size="sm" loading={resetMutation.isPending}>{t('common.save')}</Button>
+                      <Button type="button" size="sm" variant="secondary" onClick={() => { setTarget(null); setPwd('') }}>{t('common.cancel')}</Button>
                     </form>
                   )}
                 </div>
@@ -531,31 +528,39 @@ function AdminModal({ org, onClose }: { org: Organization; onClose: () => void }
           ) : (
             <div className="space-y-3">
               <div className="text-sm font-semibold text-gray-700">
-                У организации нет администратора — создайте
+                {t('orgs.director.toggle')}
               </div>
               <form
                 className="space-y-3"
                 onSubmit={(e) => { e.preventDefault(); createMutation.mutate() }}
               >
                 <div className="grid grid-cols-3 gap-3">
-                  <Input label="Фамилия *" value={newAdmin.lastName} onChange={setNA('lastName')} required />
-                  <Input label="Имя *" value={newAdmin.firstName} onChange={setNA('firstName')} required />
-                  <Input label="Отчество" value={newAdmin.middleName} onChange={setNA('middleName')} />
+                  <Input label={t('orgs.director.lastName')} value={newAdmin.lastName} onChange={setNA('lastName')} required />
+                  <Input label={t('orgs.director.firstName')} value={newAdmin.firstName} onChange={setNA('firstName')} required />
+                  <Input label={t('orgs.director.middleName')} value={newAdmin.middleName} onChange={setNA('middleName')} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="Email *" type="email" value={newAdmin.email} onChange={setNA('email')} required />
-                  <Input label="Телефон" value={newAdmin.phone} onChange={setNA('phone')} placeholder="+7..." />
+                  <Input label={t('orgs.director.email')} type="email" value={newAdmin.email} onChange={setNA('email')} required />
+                  <Input label={t('orgs.director.phone')} value={newAdmin.phone} onChange={setNA('phone')} placeholder="+7..." />
                 </div>
-                <Input label="Пароль *" type="text" value={newAdmin.password} onChange={setNA('password')} required minLength={6} placeholder="Минимум 6 символов" />
+                <Input
+                  label={t('orgs.director.password')}
+                  type="text"
+                  value={newAdmin.password}
+                  onChange={setNA('password')}
+                  required
+                  minLength={6}
+                  placeholder={t('profile.field.newPasswordPlaceholder')}
+                />
                 <div className="flex justify-end">
-                  <Button type="submit" loading={createMutation.isPending}>Создать администратора</Button>
+                  <Button type="submit" loading={createMutation.isPending}>{t('orgs.director.toggle')}</Button>
                 </div>
               </form>
             </div>
           )}
 
           <div className="flex justify-end pt-2 border-t border-gray-100">
-            <Button variant="secondary" onClick={onClose}>Закрыть</Button>
+            <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           </div>
         </div>
       )}

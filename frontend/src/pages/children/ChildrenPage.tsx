@@ -8,6 +8,7 @@ import {
 } from '@/components/common'
 import type { Child } from '@/types'
 import { format, differenceInMonths, parseISO } from 'date-fns'
+import { useT } from '@/i18n'
 
 const emptyForm = {
   lastName: '', firstName: '', middleName: '', birthDate: '',
@@ -24,6 +25,7 @@ function ageLabel(birthDate: string) {
 }
 
 export default function ChildrenPage() {
+  const t = useT()
   const qc = useQueryClient()
   const { organizationId } = useAuthStore()
   const [page, setPage] = useState(0)
@@ -87,18 +89,29 @@ export default function ChildrenPage() {
 
   const statusBadge = (s: Child['status']) => {
     const map = { active: 'badge-green', transferred: 'badge-blue', discharged: 'badge-red', graduated: 'badge-yellow' }
-    const labels = { active: 'Активен', transferred: 'Переведён', discharged: 'Выбыл', graduated: 'Выпускник' }
+    const labels = {
+      active: t('children.status.active'),
+      transferred: t('children.status.transferred'),
+      discharged: t('children.status.discharged'),
+      graduated: t('children.status.graduated'),
+    }
     return <span className={map[s]}>{labels[s]}</span>
+  }
+
+  const genderLabel = (gender: string) => {
+    if (gender === 'male') return t('children.gender.male')
+    if (gender === 'female') return t('children.gender.female')
+    return '—'
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Контингент</h1>
-          <p className="text-sm text-gray-500 mt-1">Реестр воспитанников</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('children.title')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('children.subtitle')}</p>
         </div>
-        <Button onClick={openCreate}><Plus className="h-4 w-4" /> Добавить ребёнка</Button>
+        <Button onClick={openCreate}><Plus className="h-4 w-4" /> {t('children.add')}</Button>
       </div>
 
       {/* Filters */}
@@ -107,29 +120,29 @@ export default function ChildrenPage() {
           options={branches.map((b) => ({ value: b.id, label: b.name }))}
           value={branchFilter}
           onChange={(e) => { setBranchFilter(e.target.value); setGroupFilter('') }}
-          placeholder="Все филиалы"
+          placeholder={t('common.allBranches')}
           className="w-48"
         />
         <Select
           options={groups.map((g) => ({ value: g.id, label: g.name }))}
           value={groupFilter}
           onChange={(e) => setGroupFilter(e.target.value)}
-          placeholder="Все группы"
+          placeholder={t('common.allGroups')}
           className="w-48"
         />
       </div>
 
-      {isLoading ? <Spinner /> : pageData?.content.length === 0 ? <Empty message="Нет воспитанников" /> : (
+      {isLoading ? <Spinner /> : pageData?.content.length === 0 ? <Empty message={t('children.empty')} /> : (
         <>
           <Table>
             <thead>
               <tr>
-                <Th>ФИО</Th>
-                <Th>Дата рождения</Th>
-                <Th>Возраст</Th>
-                <Th>Пол</Th>
-                <Th>Дата приёма</Th>
-                <Th>Статус</Th>
+                <Th>{t('children.col.fio')}</Th>
+                <Th>{t('children.col.birthDate')}</Th>
+                <Th>{t('children.col.age')}</Th>
+                <Th>{t('children.col.gender')}</Th>
+                <Th>{t('children.col.admissionDate')}</Th>
+                <Th>{t('common.status')}</Th>
                 <Th>{''}</Th>
               </tr>
             </thead>
@@ -146,7 +159,7 @@ export default function ChildrenPage() {
                   </Td>
                   <Td>{c.birthDate ? format(parseISO(c.birthDate), 'dd.MM.yyyy') : '—'}</Td>
                   <Td>{c.birthDate ? ageLabel(c.birthDate) : '—'}</Td>
-                  <Td>{c.gender === 'male' ? '♂ Мальчик' : c.gender === 'female' ? '♀ Девочка' : '—'}</Td>
+                  <Td>{genderLabel(c.gender ?? '')}</Td>
                   <Td>{c.admissionDate ? format(parseISO(c.admissionDate), 'dd.MM.yyyy') : '—'}</Td>
                   <Td>{statusBadge(c.status)}</Td>
                   <Td>
@@ -162,37 +175,46 @@ export default function ChildrenPage() {
         </>
       )}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? 'Редактировать воспитанника' : 'Новый воспитанник'} width="max-w-2xl">
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('children.modal.edit') : t('children.modal.create')} width="max-w-2xl">
         <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form) }} className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
-            <Input label="Фамилия *" value={form.lastName} onChange={set('lastName')} required />
-            <Input label="Имя *" value={form.firstName} onChange={set('firstName')} required />
-            <Input label="Отчество" value={form.middleName} onChange={set('middleName')} />
+            <Input label={t('children.field.lastName')} value={form.lastName} onChange={set('lastName')} required />
+            <Input label={t('children.field.firstName')} value={form.firstName} onChange={set('firstName')} required />
+            <Input label={t('children.field.middleName')} value={form.middleName} onChange={set('middleName')} />
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <Input label="Дата рождения *" type="date" value={form.birthDate} onChange={set('birthDate')} required />
-            <Select label="Пол" options={[{ value: 'male', label: 'Мальчик' }, { value: 'female', label: 'Девочка' }]} value={form.gender} onChange={set('gender')} placeholder="Не указан" />
-            <Input label="ИИН" value={form.iin} onChange={set('iin')} maxLength={12} />
+            <Input label={t('children.field.birthDate')} type="date" value={form.birthDate} onChange={set('birthDate')} required />
+            <Select
+              label={t('children.field.gender')}
+              options={[
+                { value: 'male', label: t('children.gender.male') },
+                { value: 'female', label: t('children.gender.female') },
+              ]}
+              value={form.gender}
+              onChange={set('gender')}
+              placeholder={t('children.gender.notSet')}
+            />
+            <Input label={t('children.field.iin')} value={form.iin} onChange={set('iin')} maxLength={12} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Филиал *" options={branches.map((b) => ({ value: b.id, label: b.name }))} value={form.branchId} onChange={set('branchId')} required />
-            <Select label="Группа" options={groups.map((g) => ({ value: g.id, label: g.name }))} value={form.groupId} onChange={set('groupId')} placeholder="Не назначена" />
+            <Select label={t('children.field.branch')} options={branches.map((b) => ({ value: b.id, label: b.name }))} value={form.branchId} onChange={set('branchId')} required />
+            <Select label={t('children.field.group')} options={groups.map((g) => ({ value: g.id, label: g.name }))} value={form.groupId} onChange={set('groupId')} placeholder={t('children.group.notAssigned')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Дата приёма" type="date" value={form.admissionDate} onChange={set('admissionDate')} />
-            <Input label="№ приказа о приёме" value={form.admissionOrderNum} onChange={set('admissionOrderNum')} />
+            <Input label={t('children.field.admissionDate')} type="date" value={form.admissionDate} onChange={set('admissionDate')} />
+            <Input label={t('children.field.admissionOrderNum')} value={form.admissionOrderNum} onChange={set('admissionOrderNum')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="ФИО родителя" value={form.parentName} onChange={set('parentName')} />
-            <Input label="Телефон родителя" value={form.parentPhone} onChange={set('parentPhone')} />
+            <Input label={t('children.field.parentName')} value={form.parentName} onChange={set('parentName')} />
+            <Input label={t('children.field.parentPhone')} value={form.parentPhone} onChange={set('parentPhone')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Льгота, % (скидка на оплату)" type="number" value={form.benefitPercent} onChange={set('benefitPercent')} />
-            <Input label="Причина льготы" value={form.benefitReason} onChange={set('benefitReason')} />
+            <Input label={t('children.field.benefitPercent')} type="number" value={form.benefitPercent} onChange={set('benefitPercent')} />
+            <Input label={t('children.field.benefitReason')} value={form.benefitReason} onChange={set('benefitReason')} />
           </div>
           <div className="flex gap-3 justify-end pt-2">
-            <Button type="button" variant="secondary" onClick={closeModal}>Отмена</Button>
-            <Button type="submit" loading={saveMutation.isPending}>Сохранить</Button>
+            <Button type="button" variant="secondary" onClick={closeModal}>{t('common.cancel')}</Button>
+            <Button type="submit" loading={saveMutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
       </Modal>

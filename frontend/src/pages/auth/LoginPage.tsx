@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api'
 import { Button, Input } from '@/components/common'
+import { useT } from '@/i18n'
 
 export default function LoginPage() {
+  const t = useT()
   const navigate = useNavigate()
   const { setTokens, setUser } = useAuthStore()
 
@@ -24,7 +26,7 @@ export default function LoginPage() {
       setUser(data.userId, data.organizationId, data.roleCode, data.fullName)
       navigate('/dashboard')
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Неверный email или пароль')
+      setError(err.response?.data?.message || t('auth.error'))
     } finally {
       setLoading(false)
     }
@@ -35,13 +37,13 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary-700">Әдіскер-AI</h1>
-            <p className="text-gray-500 mt-2 text-sm">Платформа управления дошкольными организациями</p>
+            <h1 className="text-3xl font-bold text-primary-700">{t('app.name')}</h1>
+            <p className="text-gray-500 mt-2 text-sm">{t('auth.subtitle')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
-              label="Email"
+              label={t('auth.email')}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -50,7 +52,7 @@ export default function LoginPage() {
               autoFocus
             />
             <Input
-              label="Пароль"
+              label={t('auth.password')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -65,7 +67,7 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" loading={loading} className="w-full" size="lg">
-              Войти
+              {t('auth.login')}
             </Button>
           </form>
         </div>
