@@ -25,7 +25,7 @@ public class GroupController {
     @GetMapping
     public ApiResponse<PageResponse<GroupDto>> list(
             @RequestParam UUID organizationId,
-            @RequestParam UUID branchId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.ok(service.list(organizationId, branchId, PageRequest.of(page, size)));

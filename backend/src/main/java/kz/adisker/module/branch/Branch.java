@@ -26,4 +26,7 @@ public class Branch extends TenantEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    @Column(name = "is_default", nullable = false)
+    private boolean isDefault = false;
 }

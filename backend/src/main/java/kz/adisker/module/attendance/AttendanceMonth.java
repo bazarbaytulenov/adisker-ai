@@ -20,7 +20,7 @@ public class AttendanceMonth {
     private UUID id;
 
     @Column(name = "organization_id", nullable = false) private UUID organizationId;
-    @Column(name = "branch_id", nullable = false)       private UUID branchId;
+    @Column(name = "branch_id")                         private UUID branchId;
     @Column(name = "group_id", nullable = false)        private UUID groupId;
     @Column(nullable = false)                           private int year;
     @Column(nullable = false)                           private int month;

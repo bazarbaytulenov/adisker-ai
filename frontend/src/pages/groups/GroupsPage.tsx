@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Users } from 'lucide-react'
 import { groupApi, branchApi } from '@/api'
 import { useAuthStore } from '@/store/authStore'
 import {
@@ -8,9 +8,11 @@ import {
 } from '@/components/common'
 import type { Group } from '@/types'
 import { useT } from '@/i18n'
+import { useNavigate } from 'react-router-dom'
 
 export default function GroupsPage() {
   const t = useT()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const { organizationId } = useAuthStore()
   const [page, setPage] = useState(0)
@@ -41,11 +43,11 @@ export default function GroupsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['groups', organizationId, branchId, page],
-    queryFn: () => groupApi.list(organizationId!, branchId || branches[0]?.id, page),
-    enabled: !!organizationId && (!!branchId || branches.length > 0),
+    queryFn: () => groupApi.list(organizationId!, branchId || undefined, page),
+    enabled: !!organizationId,
   })
 
-  const activeBranchId = branchId || branches[0]?.id || ''
+  const activeBranchId = branchId || ''
 
   const emptyForm = {
     name: '', branchId: '', language: 'ru', groupType: '',
@@ -55,12 +57,10 @@ export default function GroupsPage() {
 
   const saveMutation = useMutation({
     mutationFn: (d: typeof emptyForm) => {
-      // branchId из формы (если выбирал вручную), иначе — первый доступный филиал
-      const resolvedBranchId = d.branchId || branches[0]?.id || ''
       const payload = {
         ...d,
         organizationId: organizationId ?? undefined,
-        branchId: resolvedBranchId,
+        branchId: d.branchId || undefined,   // пусто → null → группа без филиала
         ageFromMonths: d.ageFromMonths ? Number(d.ageFromMonths) : undefined,
         ageToMonths: d.ageToMonths ? Number(d.ageToMonths) : undefined,
       }
@@ -77,7 +77,7 @@ export default function GroupsPage() {
   // При открытии формы сразу прописываем branchId из загруженного списка
   const openCreate = () => {
     setEditing(null)
-    setForm({ ...emptyForm, branchId: branches[0]?.id || '' })
+    setForm({ ...emptyForm, branchId: branchId || '' })
     setModalOpen(true)
   }
   const openEdit = (g: Group) => {
@@ -134,7 +134,20 @@ export default function GroupsPage() {
             <tbody className="divide-y divide-gray-100">
               {pageData?.content.map((g) => (
                 <tr key={g.id} className="hover:bg-gray-50">
-                  <Td><span className="font-medium">{g.name}</span></Td>
+                  <Td>
+                    <button
+                      onClick={() => {
+                        const params = new URLSearchParams({ groupId: g.id })
+                        if (g.branchId) params.set('branchId', g.branchId)
+                        navigate(`/children?${params.toString()}`)
+                      }}
+                      className="font-medium text-primary-600 hover:text-primary-800 hover:underline flex items-center gap-1"
+                      title={t('nav.children')}
+                    >
+                      {g.name}
+                      <Users className="h-3.5 w-3.5 opacity-60" />
+                    </button>
+                  </Td>
                   <Td>{GROUP_TYPES.find((tp) => tp.value === g.groupType)?.label ?? g.groupType ?? '—'}</Td>
                   <Td>
                     <span className={g.language === 'kk' ? 'badge-blue' : 'badge-gray'}>

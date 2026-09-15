@@ -16,7 +16,7 @@ function extractError(e: any): string {
     const parts = Object.entries(data.errors).map(([f, m]) => `${f}: ${m}`)
     if (parts.length) return parts.join('; ')
   }
-  return data?.message ?? e?.message ?? 'Ошибка сохранения'
+  return data?.message ?? e?.message ?? ''
 }
 
 const emptyOrgForm = {
@@ -55,19 +55,19 @@ export default function OrganizationsPage() {
   // ── Валидация формы ────────────────────────────────────────────────────────
   const validate = (): Record<string, string> => {
     const e: Record<string, string> = {}
-    if (!orgForm.name.trim()) e.name = 'Укажите название'
+    if (!orgForm.name.trim()) e.name = t('validation.required.name')
     if (orgForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(orgForm.email))
-      e.orgEmail = 'Некорректный email'
+      e.orgEmail = t('validation.invalid.email')
     if (orgForm.bin && !/^\d{12}$/.test(orgForm.bin))
-      e.bin = 'БИН должен содержать 12 цифр'
+      e.bin = t('validation.invalid.bin')
     if (!editing && withDirector) {
-      if (!dirForm.lastName.trim()) e.lastName = 'Укажите фамилию'
-      if (!dirForm.firstName.trim()) e.firstName = 'Укажите имя'
-      if (!dirForm.email.trim()) e.dirEmail = 'Укажите email'
+      if (!dirForm.lastName.trim()) e.lastName = t('validation.required.lastName')
+      if (!dirForm.firstName.trim()) e.firstName = t('validation.required.firstName')
+      if (!dirForm.email.trim()) e.dirEmail = t('validation.required.email')
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dirForm.email))
-        e.dirEmail = 'Некорректный email'
-      if (!dirForm.password) e.password = 'Укажите пароль'
-      else if (dirForm.password.length < 6) e.password = 'Минимум 6 символов'
+        e.dirEmail = t('validation.invalid.email')
+      if (!dirForm.password) e.password = t('validation.required.password')
+      else if (dirForm.password.length < 6) e.password = t('validation.password.tooShort')
     }
     return e
   }
@@ -104,7 +104,7 @@ export default function OrganizationsPage() {
 
       const res = await orgApi.create(orgPayload)
       const orgId = res.data.data?.id
-      if (!orgId) throw new Error('Не удалось создать организацию')
+      if (!orgId) throw new Error(t('error.createOrg'))
 
       if (withDirector) {
         try {
@@ -121,9 +121,8 @@ export default function OrganizationsPage() {
           })
         } catch (e) {
           throw new Error(
-            `Организация «${orgForm.name}» создана, но администратора добавить не удалось: ` +
-              extractError(e) +
-              '. Добавьте администратора позже через кнопку с ключом.'
+            `${t('orgs.field.name')} «${orgForm.name}» ${t('common.saved').toLowerCase()}, ` +
+              extractError(e)
           )
         }
       }
@@ -134,7 +133,7 @@ export default function OrganizationsPage() {
     },
     onError: (e: any) => {
       qc.invalidateQueries({ queryKey: ['organizations'] })
-      setError(e?.message?.startsWith('Организация') ? e.message : extractError(e))
+      setError(extractError(e) || t('validation.error.save'))
     },
   })
 

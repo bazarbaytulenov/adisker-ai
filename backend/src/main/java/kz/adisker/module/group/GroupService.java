@@ -23,6 +23,12 @@ public class GroupService {
     private final ChildRepository childRepo;
 
     public PageResponse<GroupDto> list(UUID orgId, UUID branchId, Pageable pageable) {
+        if (branchId == null) {
+            // Без фильтра по филиалу — показываем только группы без привязки к филиалу (branch_id IS NULL)
+            return PageResponse.from(
+                    repo.findByOrganizationIdAndBranchIdIsNullAndDeletedFalse(orgId, pageable)
+                            .map(this::toDto));
+        }
         return PageResponse.from(
                 repo.findByOrganizationIdAndBranchIdAndDeletedFalse(orgId, branchId, pageable)
                         .map(this::toDto));

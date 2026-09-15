@@ -4,8 +4,10 @@ import { connectToThread } from '@/api/chatSocket'
 import { useAuthStore } from '@/store/authStore'
 import { Card } from '@/components/common'
 import { Send } from 'lucide-react'
+import { useT } from '@/i18n'
 
 export default function ChatPage() {
+  const t = useT()
   const userId = useAuthStore((s) => s.userId)
   const [threads, setThreads] = useState<any[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -61,26 +63,32 @@ export default function ChatPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-        Чат с родителями
-        <span className={`inline-block w-2 h-2 rounded-full ${live ? 'bg-green-500' : 'bg-gray-300'}`}
-              title={live ? 'Real-time подключён' : 'Оффлайн (REST)'} />
+        {t('chat.title')}
+        <span
+          className={`inline-block w-2 h-2 rounded-full ${live ? 'bg-green-500' : 'bg-gray-300'}`}
+          title={live ? t('chat.online') : t('chat.offline')}
+        />
       </h1>
       <div className="flex gap-4 h-[70vh]">
         <Card className="w-64 overflow-y-auto shrink-0">
-          <div className="font-medium text-gray-500 text-sm mb-2">Диалоги</div>
-          {threads.length === 0 && <div className="text-gray-400 text-sm py-4">Нет диалогов</div>}
-          {threads.map((t) => (
-            <button key={t.id} onClick={() => setActiveId(t.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm ${activeId === t.id ? 'bg-primary-50 text-primary-700' : 'hover:bg-gray-100'}`}>
-              {t.childName || t.childFullName || 'Диалог'}
-              {t.unreadCount > 0 && <span className="ml-2 badge-gray">{t.unreadCount}</span>}
+          <div className="font-medium text-gray-500 text-sm mb-2">{t('chat.dialogs')}</div>
+          {threads.length === 0 && (
+            <div className="text-gray-400 text-sm py-4">{t('chat.noDialogs')}</div>
+          )}
+          {threads.map((thread) => (
+            <button key={thread.id} onClick={() => setActiveId(thread.id)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm ${activeId === thread.id ? 'bg-primary-50 text-primary-700' : 'hover:bg-gray-100'}`}>
+              {thread.childName || thread.childFullName || t('chat.noDialog')}
+              {thread.unreadCount > 0 && <span className="ml-2 badge-gray">{thread.unreadCount}</span>}
             </button>
           ))}
         </Card>
 
         <Card className="flex-1 flex flex-col">
           <div className="flex-1 overflow-y-auto space-y-2 p-2">
-            {!activeId && <div className="text-gray-400 text-center py-8">Выберите диалог</div>}
+            {!activeId && (
+              <div className="text-gray-400 text-center py-8">{t('chat.selectDialog')}</div>
+            )}
             {messages.map((m) => (
               <div key={m.id} className={`max-w-[70%] rounded-lg px-3 py-2 text-sm ${m.senderId === userId ? 'ml-auto bg-primary-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
                 {m.content}
@@ -93,7 +101,7 @@ export default function ChatPage() {
           </div>
           {activeId && (
             <div className="flex gap-2 border-t pt-3">
-              <input className="input flex-1" value={text} placeholder="Сообщение..."
+              <input className="input flex-1" value={text} placeholder={t('chat.messagePlaceholder')}
                 onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
               <button onClick={send} className="btn-primary px-4"><Send className="h-4 w-4" /></button>
             </div>

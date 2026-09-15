@@ -91,8 +91,8 @@ export const userApi = {
 
 // ─── Groups ───────────────────────────────────────────────────────────────────
 export const groupApi = {
-  list: (organizationId: string, branchId: string, page = 0, size = 20) =>
-    api.get<ApiResponse<PageResponse<Group>>>('/groups', { params: { organizationId, branchId, page, size } }),
+  list: (organizationId: string, branchId?: string, page = 0, size = 20) =>
+    api.get<ApiResponse<PageResponse<Group>>>('/groups', { params: { organizationId, ...(branchId ? { branchId } : {}), page, size } }),
 
   byBranch: (branchId: string) =>
     api.get<ApiResponse<Group[]>>(`/groups/by-branch/${branchId}`),
@@ -132,9 +132,9 @@ export const childApi = {
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
 export const attendanceApi = {
-  getSheet: (organizationId: string, branchId: string, groupId: string, year: number, month: number) =>
+  getSheet: (organizationId: string, branchId: string | undefined, groupId: string, year: number, month: number) =>
     api.get<ApiResponse<AttendanceSheet>>('/attendance/sheet', {
-      params: { organizationId, branchId, groupId, year, month },
+      params: { organizationId, ...(branchId ? { branchId } : {}), groupId, year, month },
     }),
 
   setMark: (monthId: string, organizationId: string, childId: string, day: number, mark: string | null) =>

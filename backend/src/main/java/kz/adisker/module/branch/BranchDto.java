@@ -14,5 +14,6 @@ public class BranchDto {
     private String headName;
     private Integer designCapacity;
     private boolean active;
+    private boolean isDefault;
     private Instant createdAt;
 }

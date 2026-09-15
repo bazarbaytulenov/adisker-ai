@@ -20,12 +20,12 @@ public class ChildService {
 
     public PageResponse<ChildDto> list(UUID orgId, UUID branchId, UUID groupId, Pageable pageable) {
         Page<Child> page;
-        if (branchId != null && groupId != null) {
-            page = repo.findByOrganizationIdAndBranchIdAndGroupIdAndDeletedFalse(orgId, branchId, groupId, pageable);
+        // groupId однозначно определяет группу — branchId при нём избыточен и может
+        // не совпасть с branch_id ребёнка (например если ребёнок создан без branch_id)
+        if (groupId != null) {
+            page = repo.findByOrganizationIdAndGroupIdAndDeletedFalse(orgId, groupId, pageable);
         } else if (branchId != null) {
             page = repo.findByOrganizationIdAndBranchIdAndDeletedFalse(orgId, branchId, pageable);
-        } else if (groupId != null) {
-            page = repo.findByOrganizationIdAndGroupIdAndDeletedFalse(orgId, groupId, pageable);
         } else {
             page = repo.findByOrganizationIdAndDeletedFalse(orgId, pageable);
         }

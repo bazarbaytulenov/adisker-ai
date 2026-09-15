@@ -29,7 +29,7 @@ public class AttendanceController {
     @GetMapping("/sheet")
     public ApiResponse<AttendanceService.AttendanceSheetDto> getSheet(
             @RequestParam UUID organizationId,
-            @RequestParam UUID branchId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam UUID groupId,
             @RequestParam int year,
             @RequestParam int month) {
@@ -58,7 +58,7 @@ public class AttendanceController {
     /** GET /api/attendance/export/xlsx — табель в Excel. */
     @GetMapping("/export/xlsx")
     public ResponseEntity<byte[]> exportXlsx(
-            @RequestParam UUID organizationId, @RequestParam UUID branchId,
+            @RequestParam UUID organizationId, @RequestParam(required = false) UUID branchId,
             @RequestParam UUID groupId, @RequestParam int year, @RequestParam int month,
             @AuthenticationPrincipal UserPrincipal principal) {
         var data = service.exportData(organizationId, branchId, groupId, year, month);
@@ -72,7 +72,7 @@ public class AttendanceController {
     /** GET /api/attendance/export/pdf — табель в PDF. */
     @GetMapping("/export/pdf")
     public ResponseEntity<byte[]> exportPdf(
-            @RequestParam UUID organizationId, @RequestParam UUID branchId,
+            @RequestParam UUID organizationId, @RequestParam(required = false) UUID branchId,
             @RequestParam UUID groupId, @RequestParam int year, @RequestParam int month,
             @AuthenticationPrincipal UserPrincipal principal) {
         var data = service.exportData(organizationId, branchId, groupId, year, month);

@@ -12,6 +12,8 @@ import java.util.UUID;
 @Repository
 public interface GroupRepository extends JpaRepository<Group, UUID> {
     Page<Group> findByOrganizationIdAndBranchIdAndDeletedFalse(UUID orgId, UUID branchId, Pageable pageable);
+    Page<Group> findByOrganizationIdAndBranchIdIsNullAndDeletedFalse(UUID orgId, Pageable pageable);
+    Page<Group> findByOrganizationIdAndDeletedFalse(UUID orgId, Pageable pageable);
     List<Group> findByOrganizationIdAndDeletedFalseAndActiveTrue(UUID orgId);
     List<Group> findByBranchIdAndDeletedFalseAndActiveTrue(UUID branchId);
     Optional<Group> findByIdAndOrganizationIdAndDeletedFalse(UUID id, UUID orgId);

@@ -6,27 +6,20 @@ import { useAuthStore } from '@/store/authStore'
 import { Button, Select, Spinner, Empty } from '@/components/common'
 import type { MarkSymbol } from '@/types'
 import { clsx } from 'clsx'
+import { useT } from '@/i18n'
 
 // ── Вспомогательные ───────────────────────────────────────────────────────────
 
 const MARK_CYCLE: (MarkSymbol | null)[] = ['1', 'б', 'о', null]
 
-const MONTH_NAMES = [
-  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
-]
-
-const WEEKDAY_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-
 function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate() // month here is 1-indexed
+  return new Date(year, month, 0).getDate()
 }
 
 function getWeekday(year: number, month: number, day: number): number {
   return new Date(year, month - 1, day).getDay()
 }
 
-// Определяем — выходной ли день (суббота/воскресенье)
 function isWeekend(year: number, month: number, day: number): boolean {
   const wd = getWeekday(year, month, day)
   return wd === 0 || wd === 6
@@ -43,6 +36,7 @@ const MARK_STYLE: Record<string, string> = {
 export default function AttendancePage() {
   const qc = useQueryClient()
   const { organizationId, roleCode } = useAuthStore()
+  const t = useT()
 
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -53,6 +47,10 @@ export default function AttendancePage() {
   const canEdit = ['EDUCATOR', 'METHODIST', 'DIRECTOR', 'SYSTEM_ADMIN'].includes(roleCode ?? '')
   const canClose = ['METHODIST', 'DIRECTOR', 'SYSTEM_ADMIN'].includes(roleCode ?? '')
 
+  // Массивы месяцев и дней недели через i18n
+  const MONTH_NAMES = Array.from({ length: 12 }, (_, i) => t(`attendance.month.${i}`))
+  const WEEKDAY_SHORT = Array.from({ length: 7 }, (_, i) => t(`attendance.weekday.${i}`))
+
   // ── Данные для фильтров ────────────────────────────────────────────────────
   const { data: branchesRes } = useQuery({
     queryKey: ['branches-active', organizationId],
@@ -61,24 +59,25 @@ export default function AttendancePage() {
   })
   const branches = branchesRes?.data.data ?? []
 
-  const activeBranch = branchId || branches[0]?.id
+  const activeBranch = branchId || undefined
 
   const { data: groupsRes } = useQuery({
     queryKey: ['groups-list', organizationId, activeBranch],
     queryFn: () => groupApi.list(organizationId!, activeBranch, 0, 100),
-    enabled: !!organizationId && !!activeBranch,
+    enabled: !!organizationId,
   })
   const groups = groupsRes?.data.data?.content ?? []
 
-  const activeGroup = groupId || groups[0]?.id
-  const activeGroupObj = groups.find((g) => g.id === activeGroup)
+  // Не автовыбираем группу — пользователь должен выбрать явно
+  const activeGroup = groupId || undefined
+  const activeGroupObj = groups.find((g) => g.id === groupId)
 
   // ── Табель ────────────────────────────────────────────────────────────────
   const { data: sheetRes, isLoading } = useQuery({
     queryKey: ['attendance-sheet', organizationId, activeBranch, activeGroup, year, month],
     queryFn: () =>
-      attendanceApi.getSheet(organizationId!, activeBranch, activeGroup, year, month),
-    enabled: !!organizationId && !!activeBranch && !!activeGroup,
+      attendanceApi.getSheet(organizationId!, activeBranch, activeGroup!, year, month),
+    enabled: !!organizationId && !!activeGroup,
   })
   const sheet = sheetRes?.data.data
 
@@ -88,7 +87,7 @@ export default function AttendancePage() {
       attendanceApi.setMark(sheet!.monthId, organizationId!, childId, day, mark),
     onSuccess: () =>
       qc.invalidateQueries({
-        queryKey: ['attendance-sheet', organizationId, activeBranch, activeGroup, year, month],
+        queryKey: ['attendance-sheet', organizationId, activeBranch, groupId, year, month],
       }),
   })
 
@@ -97,7 +96,7 @@ export default function AttendancePage() {
     mutationFn: () => attendanceApi.closeMonth(sheet!.monthId),
     onSuccess: () =>
       qc.invalidateQueries({
-        queryKey: ['attendance-sheet', organizationId, activeBranch, activeGroup, year, month],
+        queryKey: ['attendance-sheet', organizationId, activeBranch, groupId, year, month],
       }),
   })
 
@@ -108,7 +107,6 @@ export default function AttendancePage() {
     [daysInMonth]
   )
 
-  // Цикличный выбор: null → '1' → 'б' → 'о' → null
   const handleCellClick = (childId: string, day: number, currentMark: string | undefined) => {
     if (!canEdit || sheet?.closed) return
     const idx = MARK_CYCLE.indexOf((currentMark ?? null) as MarkSymbol | null)
@@ -126,7 +124,7 @@ export default function AttendancePage() {
     else setMonth((m) => m + 1)
   }
 
-  // ── Итого по ребёнку ────────────────────────────────────────────────────
+  // ── Итого по ребёнку ─────────────────────────────────────────────────────
   const countMarks = (marks: Record<number, string>) => {
     const present = Object.values(marks).filter((m) => m === '1').length
     const sick = Object.values(marks).filter((m) => m === 'б').length
@@ -139,43 +137,47 @@ export default function AttendancePage() {
       {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Табель посещаемости</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('attendance.title')}</h1>
           {activeGroupObj && (
-            <p className="text-sm text-gray-500 mt-0.5">Группа: {activeGroupObj.name}</p>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {t('attendance.group')}: {activeGroupObj.name}
+            </p>
           )}
         </div>
         {canClose && sheet && !sheet.closed && (
           <Button
             variant="danger"
-            onClick={() => { if (confirm('Закрыть табель? Действие необратимо.')) closeMutation.mutate() }}
+            onClick={() => { if (confirm(t('attendance.closeConfirm'))) closeMutation.mutate() }}
             loading={closeMutation.isPending}
           >
-            <Lock className="h-4 w-4" /> Закрыть табель
+            <Lock className="h-4 w-4" /> {t('attendance.close')}
           </Button>
         )}
         {sheet?.closed && (
           <span className="flex items-center gap-1.5 text-sm text-red-600 font-medium">
-            <Lock className="h-4 w-4" /> Табель закрыт
+            <Lock className="h-4 w-4" /> {t('attendance.closed')}
           </span>
         )}
       </div>
 
       {/* Фильтры + навигация */}
       <div className="flex flex-wrap items-end gap-3">
+        {branches.length > 0 && (
+          <Select
+            label={t('attendance.branch')}
+            options={branches.map((b) => ({ value: b.id, label: b.name }))}
+            value={branchId}
+            onChange={(e) => { setBranchId(e.target.value); setGroupId('') }}
+            placeholder={t('attendance.selectBranch')}
+            className="w-44"
+          />
+        )}
         <Select
-          label="Филиал"
-          options={branches.map((b) => ({ value: b.id, label: b.name }))}
-          value={branchId}
-          onChange={(e) => { setBranchId(e.target.value); setGroupId('') }}
-          placeholder="Выберите филиал"
-          className="w-44"
-        />
-        <Select
-          label="Группа"
+          label={t('attendance.group')}
           options={groups.map((g) => ({ value: g.id, label: g.name }))}
           value={groupId}
           onChange={(e) => setGroupId(e.target.value)}
-          placeholder="Выберите группу"
+          placeholder={t('attendance.selectGroup')}
           className="w-44"
         />
         {/* Навигация по месяцу */}
@@ -183,7 +185,7 @@ export default function AttendancePage() {
           <button
             onClick={prevMonth}
             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label="Предыдущий месяц"
+            aria-label="prev"
           >
             <ChevronLeft className="h-5 w-5 text-gray-600" />
           </button>
@@ -193,7 +195,7 @@ export default function AttendancePage() {
           <button
             onClick={nextMonth}
             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label="Следующий месяц"
+            aria-label="next"
           >
             <ChevronRight className="h-5 w-5 text-gray-600" />
           </button>
@@ -202,21 +204,30 @@ export default function AttendancePage() {
 
       {/* Легенда */}
       <div className="flex items-center gap-4 text-xs text-gray-500">
-        <span className="flex items-center gap-1"><span className="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 font-semibold text-xs">1</span> Присутствовал</span>
-        <span className="flex items-center gap-1"><span className="inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-600 font-semibold text-xs">б</span> Болеет</span>
-        <span className="flex items-center gap-1"><span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 font-semibold text-xs">о</span> Отпуск/отгул</span>
+        <span className="flex items-center gap-1">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 font-semibold text-xs">1</span>
+          {t('attendance.legend.present')}
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-600 font-semibold text-xs">б</span>
+          {t('attendance.legend.sick')}
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 font-semibold text-xs">о</span>
+          {t('attendance.legend.vacation')}
+        </span>
         {canEdit && !sheet?.closed && (
-          <span className="text-gray-400 italic">Кликните на ячейку для смены отметки</span>
+          <span className="text-gray-400 italic">{t('attendance.legend.hint')}</span>
         )}
       </div>
 
       {/* Таблица */}
-      {!activeBranch || !activeGroup ? (
-        <Empty message="Выберите филиал и группу" />
+      {!activeGroup ? (
+        <Empty message={t('attendance.selectGroupHint')} />
       ) : isLoading ? (
         <Spinner />
       ) : !sheet || sheet.rows.length === 0 ? (
-        <Empty message="Нет воспитанников в группе" />
+        <Empty message={t('attendance.empty')} />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200">
           <table className="min-w-full text-xs bg-white">
@@ -224,7 +235,7 @@ export default function AttendancePage() {
               {/* Строка с числами */}
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap min-w-[180px]">
-                  ФИО
+                  {t('attendance.col.fio')}
                 </th>
                 {days.map((d) => (
                   <th
@@ -237,9 +248,18 @@ export default function AttendancePage() {
                     {d}
                   </th>
                 ))}
-                <th className="px-2 py-2 text-center font-semibold text-green-700 whitespace-nowrap" title="Присутствовал">П</th>
-                <th className="px-2 py-2 text-center font-semibold text-red-600 whitespace-nowrap" title="Болеет">Б</th>
-                <th className="px-2 py-2 text-center font-semibold text-blue-600 whitespace-nowrap" title="Отпуск/отгул">О</th>
+                <th className="px-2 py-2 text-center font-semibold text-green-700 whitespace-nowrap"
+                    title={t('attendance.legend.present')}>
+                  {t('attendance.col.present')}
+                </th>
+                <th className="px-2 py-2 text-center font-semibold text-red-600 whitespace-nowrap"
+                    title={t('attendance.legend.sick')}>
+                  {t('attendance.col.sick')}
+                </th>
+                <th className="px-2 py-2 text-center font-semibold text-blue-600 whitespace-nowrap"
+                    title={t('attendance.legend.vacation')}>
+                  {t('attendance.col.vacation')}
+                </th>
               </tr>
               {/* Строка с днями недели */}
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -263,11 +283,9 @@ export default function AttendancePage() {
                 const { present, sick, vacation } = countMarks(row.marks)
                 return (
                   <tr key={row.childId} className={clsx('hover:bg-gray-50', idx % 2 === 1 && 'bg-gray-50/50')}>
-                    {/* ФИО */}
                     <td className="sticky left-0 z-10 bg-inherit px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap">
                       {idx + 1}. {row.fullName}
                     </td>
-                    {/* Ячейки дней */}
                     {days.map((d) => {
                       const mark = row.marks[d]
                       const weekend = isWeekend(year, month, d)
@@ -299,7 +317,6 @@ export default function AttendancePage() {
                         </td>
                       )
                     })}
-                    {/* Итоги */}
                     <td className="px-2 py-1.5 text-center font-semibold text-green-700">{present || ''}</td>
                     <td className="px-2 py-1.5 text-center font-semibold text-red-600">{sick || ''}</td>
                     <td className="px-2 py-1.5 text-center font-semibold text-blue-600">{vacation || ''}</td>

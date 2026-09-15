@@ -14,7 +14,7 @@ public class ChildRequest {
     @NotNull private LocalDate birthDate;
     private String gender;
     private String iin;
-    @NotNull private UUID branchId;
+    private UUID branchId;
     private UUID groupId;
     private LocalDate admissionDate;
     private String admissionOrderNum;

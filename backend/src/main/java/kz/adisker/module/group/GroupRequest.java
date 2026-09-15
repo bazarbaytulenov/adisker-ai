@@ -8,7 +8,7 @@ import java.util.UUID;
 @Data
 public class GroupRequest {
     @NotBlank private String name;
-    @NotNull private UUID branchId;
+    private UUID branchId; // nullable — для организаций без филиалов
     private String language = "ru";
     private String groupType;
     private Integer ageFromMonths;

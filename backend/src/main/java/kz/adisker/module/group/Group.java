@@ -12,7 +12,7 @@ import java.util.UUID;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class Group extends TenantEntity {
 
-    @Column(name = "branch_id", nullable = false)
+    @Column(name = "branch_id")
     private UUID branchId;
 
     @Column(nullable = false)

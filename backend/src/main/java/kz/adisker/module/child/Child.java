@@ -13,7 +13,7 @@ import java.util.UUID;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class Child extends TenantEntity {
 
-    @Column(name = "branch_id", nullable = false)
+    @Column(name = "branch_id")
     private UUID branchId;
 
     @Column(name = "group_id")

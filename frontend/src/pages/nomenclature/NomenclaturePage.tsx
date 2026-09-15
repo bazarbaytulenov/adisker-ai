@@ -3,6 +3,7 @@ import { nomenclatureApi } from '@/api'
 import { useAuthStore } from '@/store/authStore'
 import { Button, Input, Card } from '@/components/common'
 import { Plus, Trash2, Search } from 'lucide-react'
+import { useT } from '@/i18n'
 
 interface Item {
   id: string
@@ -14,6 +15,7 @@ interface Item {
 }
 
 export default function NomenclaturePage() {
+  const t = useT()
   const organizationId = useAuthStore((s) => s.organizationId)!
   const [items, setItems] = useState<Item[]>([])
   const [search, setSearch] = useState('')
@@ -38,48 +40,51 @@ export default function NomenclaturePage() {
   }
 
   const remove = async (id: string) => {
-    if (!confirm('Удалить запись?')) return
+    if (!confirm(t('nomenclature.deleteConfirm'))) return
     await nomenclatureApi.delete(organizationId, id)
     load()
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-gray-800">Номенклатура дел</h1>
+      <h1 className="text-2xl font-bold text-gray-800">{t('nomenclature.title')}</h1>
 
       <Card>
         <div className="flex gap-2 items-end flex-wrap">
-          <Input label="Индекс" value={form.indexCode}
+          <Input label={t('nomenclature.index')} value={form.indexCode}
             onChange={(e) => setForm({ ...form, indexCode: e.target.value })} className="w-28" />
-          <Input label="Наименование" value={form.title}
+          <Input label={t('nomenclature.name')} value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })} className="flex-1 min-w-64" />
-          <Input label="Срок хранения" value={form.retentionPeriod}
+          <Input label={t('nomenclature.retention')} value={form.retentionPeriod}
             onChange={(e) => setForm({ ...form, retentionPeriod: e.target.value })} className="w-40" />
-          <Button onClick={create}><Plus className="h-4 w-4" /> Добавить</Button>
+          <Button onClick={create}><Plus className="h-4 w-4" /> {t('nomenclature.add')}</Button>
         </div>
       </Card>
 
       <div className="flex gap-2 items-center">
-        <Input placeholder="Поиск по наименованию" value={search}
+        <Input placeholder={t('nomenclature.searchPlaceholder')} value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && load()} className="w-72" />
-        <Button variant="secondary" onClick={load}><Search className="h-4 w-4" /> Найти</Button>
+        <Button variant="secondary" onClick={load}><Search className="h-4 w-4" /> {t('nomenclature.search')}</Button>
       </div>
 
       <Card>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-gray-500">
-              <th className="py-2 px-2 w-24">Индекс</th>
-              <th className="py-2 px-2">Наименование</th>
-              <th className="py-2 px-2 w-40">Срок хранения</th>
+              <th className="py-2 px-2 w-24">{t('nomenclature.col.index')}</th>
+              <th className="py-2 px-2">{t('nomenclature.col.name')}</th>
+              <th className="py-2 px-2 w-40">{t('nomenclature.col.retention')}</th>
               <th className="py-2 px-2 w-16"></th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={4} className="py-6 text-center text-gray-400">Загрузка...</td></tr>}
-            {!loading && items.length === 0 &&
-              <tr><td colSpan={4} className="py-6 text-center text-gray-400">Нет данных</td></tr>}
+            {loading && (
+              <tr><td colSpan={4} className="py-6 text-center text-gray-400">{t('common.loading')}</td></tr>
+            )}
+            {!loading && items.length === 0 && (
+              <tr><td colSpan={4} className="py-6 text-center text-gray-400">{t('nomenclature.empty')}</td></tr>
+            )}
             {items.map((it) => (
               <tr key={it.id} className="border-b hover:bg-gray-50">
                 <td className="py-2 px-2 text-gray-600">{it.indexCode}</td>

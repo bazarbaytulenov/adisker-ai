@@ -57,7 +57,7 @@ export default function PaymentsPage() {
       const d = data.data || {}
       setGenMsg(`Создано начислений: ${d.created}, пропущено (уже были): ${d.skipped}. Ставка: ${d.dailyRate} ₸/день`)
     } catch (e: any) {
-      setGenMsg('Ошибка: ' + (e?.response?.data?.message || 'не удалось сформировать'))
+      setGenMsg(t('validation.error.save') + ': ' + (e?.response?.data?.message || t('validation.error.generate')))
     } finally { setGenLoading(false) }
   }
 

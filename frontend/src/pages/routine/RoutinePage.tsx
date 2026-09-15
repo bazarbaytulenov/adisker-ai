@@ -4,11 +4,13 @@ import { downloadFile } from '@/api/download'
 import { useAuthStore } from '@/store/authStore'
 import { Button, Select, Card } from '@/components/common'
 import { Wand2, Send, Plus, Trash2, FileDown } from 'lucide-react'
+import { useT } from '@/i18n'
 
 interface RoutineItem { time: string; activity: string }
 
 export default function RoutinePage() {
   const organizationId = useAuthStore((s) => s.organizationId)!
+  const t = useT()
   const [branches, setBranches] = useState<any[]>([])
   const [groups, setGroups] = useState<any[]>([])
   const [branchId, setBranchId] = useState('')
@@ -20,9 +22,7 @@ export default function RoutinePage() {
 
   useEffect(() => {
     branchApi.listActive(organizationId).then(({ data }) => {
-      const list = data.data || []
-      setBranches(list)
-      if (list[0]) setBranchId(list[0].id)
+      setBranches(data.data || [])
     })
   }, []) // eslint-disable-line
 
@@ -43,50 +43,36 @@ export default function RoutinePage() {
   }
   useEffect(() => { load() }, [groupId, language]) // eslint-disable-line
 
-  const save = async () => {
-    if (!routine) return
-    await routineApi.save(organizationId, routine.id, { items: JSON.stringify(items) })
-    load()
-  }
-  const applyTemplate = async () => {
-    if (!routine) return
-    await routineApi.applyTemplate(organizationId, routine.id)
-    load()
-  }
-  const publish = async () => {
-    if (!routine) return
-    await routineApi.publish(organizationId, routine.id)
-    load()
-  }
-
-  const setItem = (i: number, patch: Partial<RoutineItem>) =>
-    setItems(items.map((it, idx) => idx === i ? { ...it, ...patch } : it))
+  const save = async () => { if (!routine) return; await routineApi.save(organizationId, routine.id, { items: JSON.stringify(items) }); load() }
+  const applyTemplate = async () => { if (!routine) return; await routineApi.applyTemplate(organizationId, routine.id); load() }
+  const publish = async () => { if (!routine) return; await routineApi.publish(organizationId, routine.id); load() }
+  const setItem = (i: number, patch: Partial<RoutineItem>) => setItems(items.map((it, idx) => idx === i ? { ...it, ...patch } : it))
   const addItem = () => setItems([...items, { time: '', activity: '' }])
   const delItem = (i: number) => setItems(items.filter((_, idx) => idx !== i))
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-gray-800">Режим дня</h1>
-
+      <h1 className="text-2xl font-bold text-gray-800">{t('routine.title')}</h1>
       <Card>
         <div className="grid grid-cols-3 gap-3">
-          <Select label="Филиал" value={branchId} onChange={(e) => setBranchId(e.target.value)}
-            options={branches.map((b) => ({ value: b.id, label: b.name }))} />
-          <Select label="Группа" value={groupId} onChange={(e) => setGroupId(e.target.value)}
+          {branches.length > 0 && (
+            <Select label={t('routine.branch')} value={branchId} onChange={(e) => setBranchId(e.target.value)}
+              options={branches.map((b) => ({ value: b.id, label: b.name }))} />
+          )}
+          <Select label={t('routine.group')} value={groupId} onChange={(e) => setGroupId(e.target.value)}
             options={groups.map((g) => ({ value: g.id, label: g.name }))} />
-          <Select label="Язык" value={language} onChange={(e) => setLanguage(e.target.value)}
-            options={[{ value: 'ru', label: 'Русский' }, { value: 'kk', label: 'Қазақша' }]} />
+          <Select label={t('routine.lang')} value={language} onChange={(e) => setLanguage(e.target.value)}
+            options={[{ value: 'ru', label: t('lang.ru') }, { value: 'kk', label: t('lang.kk') }]} />
         </div>
       </Card>
-
       {routine && (
         <Card>
           <div className="flex gap-2 mb-3">
-            <Button variant="secondary" onClick={applyTemplate}><Wand2 className="h-4 w-4" /> По шаблону</Button>
-            <Button variant="secondary" onClick={addItem}><Plus className="h-4 w-4" /> Строка</Button>
-            <Button onClick={save} disabled={routine.published}>Сохранить</Button>
+            <Button variant="secondary" onClick={applyTemplate}><Wand2 className="h-4 w-4" /> {t('routine.template')}</Button>
+            <Button variant="secondary" onClick={addItem}><Plus className="h-4 w-4" /> {t('routine.addRow')}</Button>
+            <Button onClick={save} disabled={routine.published}>{t('routine.save')}</Button>
             <Button variant="secondary" onClick={publish} disabled={routine.published}>
-              <Send className="h-4 w-4" /> {routine.published ? 'Опубликовано' : 'Опубликовать'}
+              <Send className="h-4 w-4" /> {routine.published ? t('routine.published') : t('routine.publish')}
             </Button>
             <Button variant="secondary"
               onClick={() => downloadFile(`/routines/${routine.id}/export/word`, `routine-${routine.id}.docx`, { organizationId })}>
@@ -95,7 +81,9 @@ export default function RoutinePage() {
           </div>
           <table className="w-full text-sm">
             <thead><tr className="border-b text-left text-gray-500">
-              <th className="py-2 px-2 w-40">Время</th><th className="py-2 px-2">Режимный момент</th><th className="w-10"></th>
+              <th className="py-2 px-2 w-40">{t('routine.col.time')}</th>
+              <th className="py-2 px-2">{t('routine.col.activity')}</th>
+              <th className="w-10"></th>
             </tr></thead>
             <tbody>
               {items.map((it, i) => (
@@ -114,7 +102,7 @@ export default function RoutinePage() {
                   </td>
                 </tr>
               ))}
-              {items.length === 0 && <tr><td colSpan={3} className="py-6 text-center text-gray-400">Пусто — заполните по шаблону</td></tr>}
+              {items.length === 0 && <tr><td colSpan={3} className="py-6 text-center text-gray-400">{t('routine.empty')}</td></tr>}
             </tbody>
           </table>
         </Card>

@@ -2,6 +2,8 @@ package kz.adisker.module.organization;
 
 import kz.adisker.common.dto.PageResponse;
 import kz.adisker.common.exception.ResourceNotFoundException;
+import kz.adisker.module.branch.Branch;
+import kz.adisker.module.branch.BranchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import java.util.UUID;
 public class OrganizationService {
 
     private final OrganizationRepository repo;
+    private final BranchRepository branchRepository;
 
     public PageResponse<OrganizationDto> getAll(Pageable pageable) {
         return PageResponse.from(repo.findByDeletedFalse(pageable).map(this::toDto));
@@ -38,7 +41,18 @@ public class OrganizationService {
                 .active(true)
                 .dailyRate(req.getDailyRate() != null ? req.getDailyRate() : java.math.BigDecimal.ZERO)
                 .build();
-        return toDto(repo.save(org));
+        Organization saved = repo.save(org);
+
+        // Автоматически создаём дефолтный филиал для новой организации
+        Branch defaultBranch = Branch.builder()
+                .name("Основной")
+                .active(true)
+                .isDefault(true)
+                .build();
+        defaultBranch.setOrganizationId(saved.getId());
+        branchRepository.save(defaultBranch);
+
+        return toDto(saved);
     }
 
     @Transactional

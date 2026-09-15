@@ -3,6 +3,7 @@ import { Building2, Users, Baby, CalendarCheck } from 'lucide-react'
 import { branchApi, groupApi, childApi } from '@/api'
 import { useAuthStore } from '@/store/authStore'
 import { Spinner } from '@/components/common'
+import { useT } from '@/i18n'
 
 interface StatCardProps {
   icon: React.ElementType
@@ -27,6 +28,7 @@ function StatCard({ icon: Icon, label, value, color }: StatCardProps) {
 
 export default function DashboardPage() {
   const { organizationId } = useAuthStore()
+  const t = useT()
 
   const { data: branchesRes, isLoading: loadingBranches } = useQuery({
     queryKey: ['branches', organizationId],
@@ -45,49 +47,51 @@ export default function DashboardPage() {
   const totalBranches = branchesRes?.data.data?.totalElements ?? 0
   const totalChildren = childrenRes?.data.data?.totalElements ?? 0
 
+  const quickLinks = [
+    { label: t('dashboard.quickAccess.addChild'), href: '/children' },
+    { label: t('dashboard.quickAccess.attendance'), href: '/attendance' },
+    { label: t('dashboard.quickAccess.plans'), href: '/plans' },
+    { label: t('dashboard.quickAccess.protocols'), href: '/protocols' },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Главная</h1>
-        <p className="text-gray-500 text-sm mt-1">Общая статистика организации</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={Building2}
-          label="Филиалов"
+          label={t('dashboard.stat.branches')}
           value={totalBranches}
           color="bg-blue-500"
         />
         <StatCard
           icon={Baby}
-          label="Воспитанников"
+          label={t('dashboard.stat.children')}
           value={totalChildren}
           color="bg-green-500"
         />
         <StatCard
           icon={Users}
-          label="Сотрудников"
+          label={t('dashboard.stat.staff')}
           value="—"
           color="bg-purple-500"
         />
         <StatCard
           icon={CalendarCheck}
-          label="Посещаемость"
+          label={t('dashboard.stat.attendance')}
           value="—"
           color="bg-orange-500"
         />
       </div>
 
       <div className="card">
-        <h2 className="text-lg font-semibold mb-4">Быстрый доступ</h2>
+        <h2 className="text-lg font-semibold mb-4">{t('dashboard.quickAccess.title')}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Добавить ребёнка', href: '/children' },
-            { label: 'Табель посещаемости', href: '/attendance' },
-            { label: 'Перспективный план', href: '/plans' },
-            { label: 'Протоколы', href: '/protocols' },
-          ].map((link) => (
+          {quickLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}

@@ -108,7 +108,7 @@ start_backend() {
     export PATH="$JAVA_HOME/bin:$PATH"
     export DB_HOST="localhost"
     export DB_PORT="$DB_PORT"
-    export STORAGE_LOCAL_PATH="${STORAGE_LOCAL_PATH:-$ROOT_DIR/.dev-uploads}"
+    export STORAGE_LOCAL_PATH="$ROOT_DIR/.dev-uploads"
     mkdir -p "$STORAGE_LOCAL_PATH"
     nohup mvn -DskipTests spring-boot:run > "$BACKEND_LOG" 2>&1 &
     echo $! > "$BACKEND_PIDFILE"

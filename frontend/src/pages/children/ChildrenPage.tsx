@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Baby } from 'lucide-react'
+import { Plus, Pencil, Baby, ArrowLeft } from 'lucide-react'
 import { childApi, branchApi, groupApi } from '@/api'
 import { useAuthStore } from '@/store/authStore'
 import {
@@ -9,6 +9,7 @@ import {
 import type { Child } from '@/types'
 import { format, differenceInMonths, parseISO } from 'date-fns'
 import { useT } from '@/i18n'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 
 const emptyForm = {
   lastName: '', firstName: '', middleName: '', birthDate: '',
@@ -26,11 +27,14 @@ function ageLabel(birthDate: string) {
 
 export default function ChildrenPage() {
   const t = useT()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const { organizationId } = useAuthStore()
+  const [searchParams] = useSearchParams()
+
   const [page, setPage] = useState(0)
-  const [branchFilter, setBranchFilter] = useState('')
-  const [groupFilter, setGroupFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState(searchParams.get('branchId') ?? '')
+  const [groupFilter, setGroupFilter] = useState(searchParams.get('groupId') ?? '')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Child | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -44,8 +48,8 @@ export default function ChildrenPage() {
 
   const { data: groupsRes } = useQuery({
     queryKey: ['groups-active', organizationId, branchFilter],
-    queryFn: () => groupApi.list(organizationId!, branchFilter || branches[0]?.id, 0, 100),
-    enabled: !!organizationId && (!!branchFilter || branches.length > 0),
+    queryFn: () => groupApi.list(organizationId!, branchFilter || undefined, 0, 100),
+    enabled: !!organizationId,
   })
   const groups = groupsRes?.data.data?.content ?? []
 
@@ -57,15 +61,21 @@ export default function ChildrenPage() {
 
   const saveMutation = useMutation({
     mutationFn: (d: typeof form) => {
-      const payload = { ...d, organizationId: organizationId ?? undefined, branchId: d.branchId || branches[0]?.id }
-      return editing ? childApi.update(editing.id, payload as Partial<Child>) : childApi.create(payload as Partial<Child>)
+      const payload = {
+        ...d,
+        organizationId: organizationId ?? undefined,
+        branchId: d.branchId || undefined,
+        groupId: d.groupId || undefined,
+        benefitPercent: d.benefitPercent ? Number(d.benefitPercent) : undefined,
+      }
+      return editing ? childApi.update(editing.id, payload as any) : childApi.create(payload as any)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['children'] }); closeModal() },
   })
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ ...emptyForm, branchId: branchFilter || branches[0]?.id || '' })
+    setForm({ ...emptyForm, branchId: branchFilter || '', groupId: groupFilter || '' })
     setModalOpen(true)
   }
   const openEdit = (c: Child) => {
@@ -104,12 +114,26 @@ export default function ChildrenPage() {
     return '—'
   }
 
+  const activeGroup = groupFilter ? groups.find((g) => g.id === groupFilter) : null
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('children.title')}</h1>
-          <p className="text-sm text-gray-500 mt-1">{t('children.subtitle')}</p>
+          {activeGroup && (
+            <button
+              onClick={() => navigate('/groups')}
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-primary-600 mb-1"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> {t('nav.groups')}
+            </button>
+          )}
+          <h1 className="text-2xl font-bold text-gray-900">
+            {activeGroup ? activeGroup.name : t('children.title')}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {activeGroup ? t('children.subtitle') : t('children.subtitle')}
+          </p>
         </div>
         <Button onClick={openCreate}><Plus className="h-4 w-4" /> {t('children.add')}</Button>
       </div>
@@ -132,7 +156,7 @@ export default function ChildrenPage() {
         />
       </div>
 
-      {isLoading ? <Spinner /> : pageData?.content.length === 0 ? <Empty message={t('children.empty')} /> : (
+      {isLoading ? <Spinner /> : !pageData || pageData.content.length === 0 ? <Empty message={t('children.empty')} /> : (
         <>
           <Table>
             <thead>
@@ -197,7 +221,9 @@ export default function ChildrenPage() {
             <Input label={t('children.field.iin')} value={form.iin} onChange={set('iin')} maxLength={12} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Select label={t('children.field.branch')} options={branches.map((b) => ({ value: b.id, label: b.name }))} value={form.branchId} onChange={set('branchId')} required />
+            {branches.length > 0 && (
+              <Select label={t('children.field.branch')} options={branches.map((b) => ({ value: b.id, label: b.name }))} value={form.branchId} onChange={set('branchId')} placeholder={t('children.group.notAssigned')} />
+            )}
             <Select label={t('children.field.group')} options={groups.map((g) => ({ value: g.id, label: g.name }))} value={form.groupId} onChange={set('groupId')} placeholder={t('children.group.notAssigned')} />
           </div>
           <div className="grid grid-cols-2 gap-3">

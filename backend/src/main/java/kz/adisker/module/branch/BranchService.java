@@ -78,6 +78,7 @@ public class BranchService {
         dto.setHeadName(b.getHeadName());
         dto.setDesignCapacity(b.getDesignCapacity());
         dto.setActive(b.isActive());
+        dto.setDefault(b.isDefault());
         dto.setCreatedAt(b.getCreatedAt());
         return dto;
     }
